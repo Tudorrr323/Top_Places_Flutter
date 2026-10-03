@@ -34,6 +34,9 @@ void main() {
 
   testWidgets('tapping a place opens its details', (tester) async {
     await startApp(tester, const Size(400, 800));
+     // The cards are tall, so search first to bring the place to the top.
+    await tester.enterText(find.byType(TextField), 'new world');
+    await tester.pumpAndSettle();
     await tester.tap(find.text("Café 'New World'"));
     await tester.pumpAndSettle();
     expect(find.text('Str. Lăpușneanu, Nr. 12, Iași'), findsOneWidget);
