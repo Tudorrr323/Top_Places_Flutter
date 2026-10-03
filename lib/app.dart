@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:top_places/router.dart';
 import 'package:top_places/services/places_repository.dart';
+import 'package:top_places/view_models/explore_view_model.dart';
 
 /// The blue of the original app (#007AFF), used to generate both themes.
 const _brandBlue = Color(0xFF007AFF);
@@ -29,8 +30,13 @@ class _TopPlacesAppState extends State<TopPlacesApp> {
 
   @override
   Widget build(BuildContext context) {
-    return Provider<PlacesRepository>.value(
-      value: widget.repository,
+    return MultiProvider(
+      providers: [
+        Provider<PlacesRepository>.value(value: widget.repository),
+        ChangeNotifierProvider(
+          create: (context) => ExploreViewModel(widget.repository.places),
+        ),
+      ],
       child: MaterialApp.router(
         title: 'Top Places',
         debugShowCheckedModeBanner: false,
