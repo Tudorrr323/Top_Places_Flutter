@@ -1,9 +1,6 @@
 import 'package:top_places/models/filters.dart';
 import 'package:top_places/models/place.dart';
 import 'package:top_places/utils/text_normalize.dart';
-import 'package:top_places/models/filters.dart';
-import 'package:top_places/models/place.dart';
-import 'package:top_places/utils/text_normalize.dart';
 
 /// The places that match the search text and the filters, ordered as
 /// [Filters.sortBy] says. The list passed in is not changed.
