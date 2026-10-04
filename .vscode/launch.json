@@ -9,6 +9,14 @@
             "request": "launch",
             "type": "dart",
             "program": "lib/main.dart"
+        },
+        {
+            // Reads the Gemini key from config/dev.json (ignored by git).
+            "name": "Top Places (Gemini)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "toolArgs": ["--dart-define-from-file=config/dev.json"]
         }
     ]
 }
