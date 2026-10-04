@@ -12,9 +12,13 @@ class ExploreViewModel extends ChangeNotifier {
   final List<Place> _allPlaces;
   String _query = '';
   Filters _filters = const Filters();
+  bool _showMap = false;
 
   String get query => _query;
   Filters get filters => _filters;
+
+  /// On narrow screens: true shows the map, false the list.
+  bool get showMap => _showMap;
 
   /// The places to show, after the search text, the filters and the sorting.
   List<Place> get visiblePlaces =>
@@ -39,4 +43,9 @@ class ExploreViewModel extends ChangeNotifier {
   }
 
   void resetFilters() => applyFilters(const Filters());
+
+  void toggleMap() {
+    _showMap = !_showMap;
+    notifyListeners();
+  }
 }
