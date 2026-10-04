@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-/// The frame around the Explore and Profile tabs: a bottom navigation bar on
-/// narrow screens (phones), a navigation rail on the left on wide ones
-/// (Windows and the browser).
+/// The frame around the tabs: a bottom navigation bar on narrow screens
+/// (phones), a navigation rail on the left on wide ones (Windows and the
+/// browser).
 class HomeShell extends StatelessWidget {
   const HomeShell({super.key, required this.navigationShell});
 
@@ -37,6 +37,11 @@ class HomeShell extends StatelessWidget {
                   label: Text('Explorează'),
                 ),
                 NavigationRailDestination(
+                  icon: Icon(Icons.chat_bubble_outline),
+                  selectedIcon: Icon(Icons.chat_bubble),
+                  label: Text('Asistent'),
+                ),
+                NavigationRailDestination(
                   icon: Icon(Icons.person_outline),
                   selectedIcon: Icon(Icons.person),
                   label: Text('Profil'),
@@ -59,6 +64,11 @@ class HomeShell extends StatelessWidget {
             icon: Icon(Icons.map_outlined),
             selectedIcon: Icon(Icons.map),
             label: 'Explorează',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.chat_bubble_outline),
+            selectedIcon: Icon(Icons.chat_bubble),
+            label: 'Asistent',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),

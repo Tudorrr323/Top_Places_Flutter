@@ -20,11 +20,28 @@ class ExploreScreen extends StatefulWidget {
 class _ExploreScreenState extends State<ExploreScreen> {
   // Holds the text of the search bar. Created once, disposed with the screen.
   final _searchController = TextEditingController();
+  late final ExploreViewModel _viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    // The assistant can change the search too, so the search bar follows
+    // the view model instead of only feeding it.
+    _viewModel = context.read<ExploreViewModel>()..addListener(_showQuery);
+    _showQuery();
+  }
 
   @override
   void dispose() {
+    _viewModel.removeListener(_showQuery);
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _showQuery() {
+    if (_searchController.text != _viewModel.query) {
+      _searchController.text = _viewModel.query;
+    }
   }
 
   void _clearSearch() {

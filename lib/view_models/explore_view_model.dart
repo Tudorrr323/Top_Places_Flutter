@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:top_places/models/chat_message.dart';
 import 'package:top_places/models/filters.dart';
 import 'package:top_places/models/place.dart';
 import 'package:top_places/utils/place_search.dart';
@@ -46,6 +47,22 @@ class ExploreViewModel extends ChangeNotifier {
 
   void toggleMap() {
     _showMap = !_showMap;
+    notifyListeners();
+  }
+
+  /// Shows on the map what the assistant found: one place, searched by its
+  /// name, or every place in a city. The old search and filters go, so they
+  /// can't hide the result (in the old app the button then did nothing).
+  void showOnMap(ChatAction action) {
+    switch (action) {
+      case ShowPlace(:final place):
+        _query = place.name;
+        _filters = const Filters();
+      case ShowCity(:final city):
+        _query = '';
+        _filters = Filters(city: city);
+    }
+    _showMap = true;
     notifyListeners();
   }
 }

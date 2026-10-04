@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import 'package:top_places/screens/chat_screen.dart';
 import 'package:top_places/screens/explore_screen.dart';
 import 'package:top_places/screens/home_shell.dart';
 import 'package:top_places/screens/not_found_screen.dart';
@@ -12,8 +13,8 @@ GoRouter createRouter() {
     errorBuilder: (context, state) => const NotFoundScreen(),
     routes: [
       GoRoute(path: '/', redirect: (context, state) => '/explore'),
-      // The two tabs. Each branch keeps its own history, like the tabs in
-      // Expo Router.
+      // The tabs. Each branch keeps its own history, like the tabs in Expo
+      // Router, so the chat is still there after a look at the map.
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             HomeShell(navigationShell: navigationShell),
@@ -23,6 +24,14 @@ GoRouter createRouter() {
               GoRoute(
                 path: '/explore',
                 builder: (context, state) => const ExploreScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/assistant',
+                builder: (context, state) => const ChatScreen(),
               ),
             ],
           ),

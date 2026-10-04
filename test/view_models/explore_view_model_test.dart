@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:top_places/models/chat_message.dart';
 import 'package:top_places/models/filters.dart';
 import 'package:top_places/services/places_repository.dart';
 import 'package:top_places/view_models/explore_view_model.dart';
@@ -45,6 +46,27 @@ void main() {
     viewModel.resetFilters();
     expect(viewModel.visiblePlaces, hasLength(20));
     expect(viewModel.filters.isActive, isFalse);
+  });
+
+  test('showOnMap with a place clears the filters that would hide it', () {
+    final burgers = places.firstWhere((place) => place.name == 'Burger Shack');
+    final viewModel = ExploreViewModel(places)
+      ..applyFilters(const Filters(city: 'Iași'));
+
+    viewModel.showOnMap(ShowPlace(burgers));
+
+    expect(viewModel.visiblePlaces, [burgers]);
+    expect(viewModel.filters.isActive, isFalse);
+    expect(viewModel.showMap, isTrue);
+  });
+
+  test('showOnMap with a city shows only its places', () {
+    final viewModel = ExploreViewModel(places)..setQuery('pizza');
+
+    viewModel.showOnMap(const ShowCity('Cluj-Napoca'));
+
+    expect(viewModel.query, isEmpty);
+    expect(viewModel.visiblePlaces, hasLength(3));
   });
 
   test('cities lists only the 13 cities with places, A to Z', () {
