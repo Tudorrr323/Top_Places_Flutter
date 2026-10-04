@@ -5,7 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:top_places/app.dart';
 import 'package:top_places/screens/explore_screen.dart';
+import 'package:top_places/services/gemini_service.dart';
 import 'package:top_places/services/places_repository.dart';
+
+import '../fake_gemini.dart';
 
 void main() {
   final repository = PlacesRepository.fromJsonStrings(
@@ -14,11 +17,17 @@ void main() {
   );
 
   /// Starts the app and goes straight to [location], like a link on the web.
-  Future<void> openLink(WidgetTester tester, String location) async {
+  Future<void> openLink(
+    WidgetTester tester,
+    String location, {
+    GeminiService? gemini,
+  }) async {
     tester.view.physicalSize = const Size(400, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(TopPlacesApp(repository: repository));
+    await tester.pumpWidget(
+      TopPlacesApp(repository: repository, gemini: gemini),
+    );
     await tester.pumpAndSettle();
     GoRouter.of(tester.element(find.byType(ExploreScreen))).go(location);
     await tester.pumpAndSettle();
@@ -74,5 +83,25 @@ void main() {
     await openLink(tester, '/locations/does-not-exist');
 
     expect(find.text('Nu am găsit pagina căutată.'), findsOneWidget);
+  });
+
+  testWidgets('with a key, the vibe comes from Gemini, labelled as such', (
+    tester,
+  ) async {
+    const vibe = 'Brunch lejer și prăjituri bune, într-un decor modern. 🍰';
+    await openLink(
+      tester,
+      '/locations/cafe-new-world',
+      gemini: fakeGemini(vibe),
+    );
+
+    await tester.tap(find.text('Generează un vibe cu AI'));
+    await tester.pumpAndSettle();
+
+    expect(find.text(vibe), findsOneWidget);
+    expect(
+      find.text('Generat cu Gemini. Poate conține greșeli.'),
+      findsOneWidget,
+    );
   });
 }

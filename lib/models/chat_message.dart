@@ -22,14 +22,27 @@ class ShowCity extends ChatAction {
   final String city;
 }
 
-/// One message in the chat, written by the user or by the assistant.
+/// One message in the chat: from the user, from the assistant's rules, or
+/// written by Gemini.
 class ChatMessage {
-  const ChatMessage.user(this.text) : fromUser = true, action = null;
+  const ChatMessage.user(this.text)
+    : fromUser = true,
+      fromAi = false,
+      action = null;
 
-  const ChatMessage.bot(this.text, {this.action}) : fromUser = false;
+  const ChatMessage.bot(this.text, {this.action})
+    : fromUser = false,
+      fromAi = false;
+
+  const ChatMessage.ai(this.text, {this.action})
+    : fromUser = false,
+      fromAi = true;
 
   final String text;
   final bool fromUser;
+
+  /// True when Gemini wrote it, so the chat can label it.
+  final bool fromAi;
 
   /// Only answers from the assistant can have one.
   final ChatAction? action;

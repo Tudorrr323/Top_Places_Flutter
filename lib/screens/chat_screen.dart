@@ -3,7 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:top_places/models/chat_message.dart';
 import 'package:top_places/services/bot_engine.dart';
+import 'package:top_places/services/gemini_service.dart';
 import 'package:top_places/services/places_repository.dart';
+import 'package:top_places/utils/text_normalize.dart';
 import 'package:top_places/view_models/explore_view_model.dart';
 
 /// Questions to start with, shown until the first message is sent.
@@ -14,8 +16,9 @@ const _suggestions = [
   'Cum fac o rezervare?',
 ];
 
-/// The Asistent tab: a chat with the rule-based assistant. Being a tab, it
-/// keeps the conversation while you look at the map.
+/// The Asistent tab: a chat with the assistant. Its rules answer at once;
+/// what they don't understand goes to Gemini, when the app has a key.
+/// Being a tab, it keeps the conversation while you look at the map.
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
 
@@ -25,18 +28,28 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final _input = TextEditingController();
-  final _messages = [
-    const ChatMessage.bot(
-      'Salut! Sunt asistentul tău virtual. Cum te pot ajuta?',
-    ),
-  ];
+  final _messages = <ChatMessage>[];
   late final BotEngine _bot;
+
+  /// Null when the app runs without a Gemini key.
+  late final GeminiService? _gemini;
+
+  /// True while Gemini writes an answer.
+  bool _waiting = false;
 
   @override
   void initState() {
     super.initState();
     final repository = context.read<PlacesRepository>();
     _bot = BotEngine(places: repository.places, cities: repository.cities);
+    _gemini = context.read<GeminiService?>();
+    _messages.add(
+      ChatMessage.bot(
+        'Salut! Sunt asistentul Top Places. Răspund pe loc la întrebări '
+        'despre localuri, orașe și rezervări'
+        '${_gemini == null ? '.' : ', iar ce nu știu întreb AI-ul (Gemini).'}',
+      ),
+    );
   }
 
   @override
@@ -45,14 +58,68 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  void _send(String text) {
-    if (text.trim().isEmpty) return;
+  Future<void> _send(String text) async {
+    final message = text.trim();
+    if (message.isEmpty || _waiting) return;
+    final reply = _bot.reply(message);
+    final gemini = reply == BotEngine.notUnderstood ? _gemini : null;
     setState(() {
-      _messages.add(ChatMessage.user(text.trim()));
-      // The answer comes at once; the old app waited 500 ms to look busy.
-      _messages.add(_bot.reply(text));
+      _messages.add(ChatMessage.user(message));
+      // The rules answer at once; the old app waited 500 ms to look busy.
+      if (gemini == null) _messages.add(reply);
+      _waiting = gemini != null;
     });
     _input.clear();
+    if (gemini == null) return;
+
+    final answer = await _askGemini(gemini, message);
+    if (!mounted) return;
+    setState(() {
+      _messages.add(answer);
+      _waiting = false;
+    });
+  }
+
+  /// What Gemini is told before every question: its role, the rules, and
+  /// every place in the app, so that it doesn't invent others.
+  late final String _instructions = [
+    'Ești asistentul aplicației Top Places, care recomandă localuri din '
+        'România. Răspunzi în română, pe scurt (cel mult 3 propoziții), '
+        'fără Markdown.',
+    'Recomanzi doar localuri din lista de mai jos și le scrii numele exact '
+        'ca în listă. Nu inventa alte localuri, adrese sau prețuri.',
+    'Dacă întrebarea nu are legătură cu localurile sau cu ieșitul în oraș, '
+        'spui politicos că te ocupi doar de localurile din aplicație.',
+    'Localurile:',
+    for (final place in _bot.places)
+      '- ${place.name}, ${place.city}, rating ${place.rating}: '
+          '${place.description}',
+  ].join('\n');
+
+  Future<ChatMessage> _askGemini(GeminiService gemini, String message) async {
+    try {
+      final text = await gemini.generate(message, instructions: _instructions);
+      return ChatMessage.ai(text, action: _placeNamedIn(text));
+    } on GeminiException catch (error) {
+      return ChatMessage.bot(
+        error.isQuotaExceeded
+            ? 'Nu am înțeles întrebarea, iar AI-ul și-a atins limita gratuită '
+                  'pentru moment. Întreabă-mă despre localuri, orașe sau '
+                  'rezervări.'
+            : 'Nu am înțeles întrebarea, iar AI-ul nu răspunde acum (poate '
+                  'lipsește internetul). Întreabă-mă despre localuri, orașe '
+                  'sau rezervări.',
+      );
+    }
+  }
+
+  /// "Arată pe hartă" for an answer from Gemini that names exactly one place.
+  ChatAction? _placeNamedIn(String text) {
+    final slug = slugify(text);
+    final named = _bot.places
+        .where((place) => slug.contains(slugify(place.name)))
+        .toList();
+    return named.length == 1 ? ShowPlace(named.single) : null;
   }
 
   void _showOnMap(ChatAction action) {
@@ -102,6 +169,10 @@ class _ChatScreenState extends State<ChatScreen> {
                     ],
                   ),
                 ),
+              if (_waiting)
+                const LinearProgressIndicator(
+                  semanticsLabel: 'Gemini scrie un răspuns',
+                ),
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
@@ -124,7 +195,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     const SizedBox(width: 8),
                     IconButton.filled(
                       tooltip: 'Trimite',
-                      onPressed: () => _send(_input.text),
+                      onPressed: _waiting ? null : () => _send(_input.text),
                       icon: const Icon(Icons.send),
                     ),
                   ],
@@ -148,7 +219,8 @@ class _Bubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final fromUser = message.fromUser;
     final action = message.action;
 
@@ -177,6 +249,15 @@ class _Bubble extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (message.fromAi) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Generat cu Gemini. Poate conține greșeli.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
                 if (action != null) ...[
                   const SizedBox(height: 8),
                   FilledButton.tonalIcon(

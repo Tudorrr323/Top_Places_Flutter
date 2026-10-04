@@ -116,6 +116,12 @@ final _faq = [
 class BotEngine {
   BotEngine({required this.places, required this.cities});
 
+  /// The answer when no rule matches. The chat then asks Gemini, if it can.
+  static const notUnderstood = ChatMessage.bot(
+    'Nu am înțeles întrebarea. Poți reformula, te rog? Pot răspunde la '
+    'întrebări despre localuri, rezervări sau funcțiile aplicației.',
+  );
+
   final List<Place> places;
   final List<City> cities;
 
@@ -210,10 +216,7 @@ class BotEngine {
     for (final (pattern, answer) in _faq) {
       if (pattern.hasMatch(text)) return ChatMessage.bot(answer);
     }
-    return const ChatMessage.bot(
-      'Nu am înțeles întrebarea. Poți reformula, te rog? Pot răspunde la '
-      'întrebări despre localuri, rezervări sau funcțiile aplicației.',
-    );
+    return notUnderstood;
   }
 
   /// The places of [kind] in [city] (of any kind if null), named in the

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:top_places/models/place.dart';
 import 'package:top_places/screens/not_found_screen.dart';
+import 'package:top_places/services/gemini_service.dart';
 import 'package:top_places/services/places_repository.dart';
 import 'package:top_places/utils/links.dart';
 import 'package:top_places/widgets/place_photo.dart';
@@ -12,8 +13,8 @@ import 'package:top_places/widgets/place_photo.dart';
 const _whatsAppGreen = Color(0xFF25D366);
 
 /// "Vibe" sentences written in advance. The old app asked Gemini for a vibe
-/// and showed one of these when the call failed. Without a live AI they are
-/// shown for what they are: examples.
+/// and showed one of these when the call failed. Here they are shown when
+/// Gemini can't answer (or there is no key), labelled as examples.
 const _vibeExamples = [
   'Atmosfera este electrică și primitoare, perfectă pentru o ieșire memorabilă.',
   'Un loc cu un vibe relaxat, unde te poți deconecta complet de agitația orașului.',
@@ -149,7 +150,7 @@ class _PlaceInfo extends StatelessWidget {
           const Divider(height: 32),
           _AboutSection(place: place),
           const SizedBox(height: 16),
-          const _VibeSection(),
+          _VibeSection(place: place),
           const SizedBox(height: 24),
           // Side by side when they fit, one under the other when they don't.
           OverflowBar(
@@ -249,34 +250,72 @@ class _AboutSectionState extends State<_AboutSection> {
   }
 }
 
-/// A button that shows the vibe examples, one after another.
+/// A button for a short "vibe" of the place: written by Gemini when the app
+/// has a key, otherwise one of the examples, labelled as such.
 class _VibeSection extends StatefulWidget {
-  const _VibeSection();
+  const _VibeSection({required this.place});
+
+  final Place place;
 
   @override
   State<_VibeSection> createState() => _VibeSectionState();
 }
 
 class _VibeSectionState extends State<_VibeSection> {
-  /// The example on screen, or null before the first tap.
-  int? _index;
+  /// The text on screen and the note under it, or null before the first tap.
+  ({String text, String note})? _vibe;
+  int _exampleIndex = -1;
+  bool _loading = false;
 
-  void _showNext() {
-    final index = _index;
+  Future<void> _showVibe() async {
+    final gemini = context.read<GeminiService?>();
+    if (gemini == null) {
+      _showExample('Exemplu scris dinainte, nu generat de AI.');
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      final place = widget.place;
+      final text = await gemini.generate(
+        'Scrie o descriere scurtă și creativă (un „vibe”), de cel mult două '
+        'propoziții, pentru „${place.name}” din ${place.city}. Ce știm '
+        'despre loc: ${place.description}',
+        instructions:
+            'Scrii în română, cu un ton modern și un emoji, fără Markdown. '
+            'Nu inventa prețuri, adrese sau meniuri.',
+      );
+      if (!mounted) return;
+      setState(() {
+        _vibe = (text: text, note: 'Generat cu Gemini. Poate conține greșeli.');
+        _loading = false;
+      });
+    } on GeminiException {
+      if (!mounted) return;
+      _showExample('Exemplu scris dinainte: AI-ul nu răspunde acum.');
+    }
+  }
+
+  void _showExample(String note) {
     setState(() {
-      _index = index == null ? 0 : (index + 1) % _vibeExamples.length;
+      _exampleIndex = (_exampleIndex + 1) % _vibeExamples.length;
+      _vibe = (text: _vibeExamples[_exampleIndex], note: note);
+      _loading = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final index = _index;
+    final withAi = context.watch<GeminiService?>() != null;
+    final vibe = _vibe;
+    final label = vibe == null
+        ? (withAi ? 'Generează un vibe cu AI' : 'Arată un exemplu de vibe')
+        : (withAi ? 'Alt vibe' : 'Alt exemplu');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (index != null)
+        if (vibe != null)
           // Screen readers read the new text each time it changes.
           Semantics(
             liveRegion: true,
@@ -290,16 +329,13 @@ class _VibeSectionState extends State<_VibeSection> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _vibeExamples[index],
+                        vibe.text,
                         style: theme.textTheme.bodyLarge?.copyWith(
                           fontStyle: FontStyle.italic,
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        'Exemplu scris dinainte, nu generat de AI.',
-                        style: theme.textTheme.bodySmall,
-                      ),
+                      Text(vibe.note, style: theme.textTheme.bodySmall),
                     ],
                   ),
                 ),
@@ -307,11 +343,14 @@ class _VibeSectionState extends State<_VibeSection> {
             ),
           ),
         TextButton.icon(
-          onPressed: _showNext,
-          icon: const Icon(Icons.auto_awesome),
-          label: Text(
-            index == null ? 'Arată un exemplu de vibe' : 'Alt exemplu',
-          ),
+          onPressed: _loading ? null : _showVibe,
+          icon: _loading
+              ? const SizedBox.square(
+                  dimension: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.auto_awesome),
+          label: Text(label),
         ),
       ],
     );
