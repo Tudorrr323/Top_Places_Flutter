@@ -8,6 +8,7 @@
     },
     "image_url": "https://images.unsplash.com/photo-1435224654926-ecc9f7fa028c",
     "short_description": "A quiet place, ideal for reading and study sessions. Excellent espresso.",
+    "short_description_ro": "Un loc liniștit, ideal pentru citit și studiu. Espresso excelent.",
     "rating": 4.8
   },
   {
@@ -19,6 +20,7 @@
     },
     "image_url": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e",
     "short_description": "Traditional Romanian dishes, generous servings, and live folk music.",
+    "short_description_ro": "Mâncăruri tradiționale românești, porții generoase și muzică populară live.",
     "rating": 4.5
   },
   {
@@ -30,6 +32,7 @@
     },
     "image_url": "https://images.unsplash.com/photo-1505483531331-fc3cf89fd382",
     "short_description": "Fast and tasty Asian food, a favorite among Polytechnic students.",
+    "short_description_ro": "Mâncare asiatică rapidă și gustoasă, preferată de studenții de la Politehnică.",
     "rating": 4.2
   },
   {
@@ -41,6 +44,7 @@
     },
     "image_url": "https://images.unsplash.com/photo-1437622368342-7a3d73a34c8f",
     "short_description": "Modern design, perfect for a relaxed brunch. They have the best cakes.",
+    "short_description_ro": "Design modern, perfect pentru un brunch relaxat. Au cele mai bune prăjituri.",
     "rating": 4.7
   },
   {
@@ -52,6 +56,7 @@
     },
     "image_url": "https://images.unsplash.com/photo-1469474968028-56623f02e42e",
     "short_description": "Wood-fired oven pizza, authentic Italian ingredients. Excellent for groups.",
+    "short_description_ro": "Pizza la cuptor cu lemne, ingrediente italiene autentice. Excelent pentru grupuri.",
     "rating": 4.6
   },
   {
@@ -63,6 +68,7 @@
     },
     "image_url": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
     "short_description": "Healthy, plant-based options. Fresh smoothies and delicious cream soups.",
+    "short_description_ro": "Opțiuni sănătoase, pe bază de plante. Smoothie-uri proaspete și supe cremă delicioase.",
     "rating": 4.9
   },
   {
@@ -74,6 +80,7 @@
     },
     "image_url": "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee",
     "short_description": "Strategic location near the campus. Quick and affordable student lunch menu.",
+    "short_description_ro": "Locație strategică lângă campus. Meniu de prânz rapid și accesibil pentru studenți.",
     "rating": 4.0
   },
   {
@@ -85,6 +92,7 @@
     },
     "image_url": "https://images.unsplash.com/photo-1501785888041-af3ef285b470",
     "short_description": "The best artisanal burgers in town, featuring Black Angus beef.",
+    "short_description_ro": "Cei mai buni burgeri artizanali din oraș, cu carne Black Angus.",
     "rating": 4.4
   },
   {
@@ -96,6 +104,7 @@
     },
     "image_url": "https://images.unsplash.com/photo-1470770841072-f978cf4d019e",
     "short_description": "An oasis of calm with over 50 types of tea and ambient music.",
+    "short_description_ro": "O oază de liniște cu peste 50 de tipuri de ceai și muzică ambientală.",
     "rating": 4.7
   },
   {
@@ -107,6 +116,7 @@
     },
     "image_url": "https://images.unsplash.com/photo-1469474968028-56623f02e42e",
     "short_description": "Fresh fish and seafood specialties, with a view of the sea.",
+    "short_description_ro": "Specialități din pește proaspăt și fructe de mare, cu vedere la mare.",
     "rating": 4.5
   },
   {
@@ -118,6 +128,7 @@
     },
     "image_url": "https://images.unsplash.com/photo-1465101162946-4377e57745c3",
     "short_description": "International menu, green terrace. Ideal for a romantic dinner.",
+    "short_description_ro": "Meniu internațional, terasă verde. Ideal pentru o cină romantică.",
     "rating": 4.3
   },
   {
@@ -129,6 +140,7 @@
     },
     "image_url": "https://images.unsplash.com/photo-1500534623283-312aade485b7",
     "short_description": "Board games, consoles, and coffee. An excellent place for socializing.",
+    "short_description_ro": "Jocuri de societate, console și cafea. Un loc excelent pentru socializare.",
     "rating": 4.1
   },
   {
@@ -140,6 +152,7 @@
     },
     "image_url": "https://images.unsplash.com/photo-1462331940025-496dfbfc7564",
     "short_description": "Homemade pasta and Italian wines. Mediterranean atmosphere.",
+    "short_description_ro": "Paste de casă și vinuri italienești. Atmosferă mediteraneană.",
     "rating": 4.6
   },
   {
@@ -151,6 +164,7 @@
     },
     "image_url": "https://images.unsplash.com/photo-1435224654926-ecc9f7fa028c",
     "short_description": "Artisanal bakery with specialty coffees. Ideal for breakfast.",
+    "short_description_ro": "Brutărie artizanală cu cafea de specialitate. Ideal pentru micul dejun.",
     "rating": 4.8
   },
   {
@@ -162,6 +176,7 @@
     },
     "image_url": "https://images.unsplash.com/photo-1441974231531-c6227db76b6e",
     "short_description": "Döner Kebab and Shawarma. Quick and filling option after classes.",
+    "short_description_ro": "Döner Kebab și Shaorma. Opțiune rapidă și sățioasă după cursuri.",
     "rating": 3.9
   },
   {
@@ -173,6 +188,7 @@
     },
     "image_url": "https://images.unsplash.com/photo-1505483531331-fc3cf89fd382",
     "short_description": "Traditional Transylvanian food, next to the Medieval Citadel.",
+    "short_description_ro": "Mâncare tradițională ardelenească, lângă Cetatea Medievală.",
     "rating": 4.4
   },
   {
@@ -184,6 +200,7 @@
     },
     "image_url": "https://images.unsplash.com/photo-1437622368342-7a3d73a34c8f",
     "short_description": "Smoothies, natural juices, and acai bowls for an energy boost.",
+    "short_description_ro": "Smoothie-uri, sucuri naturale și boluri acai pentru un boost de energie.",
     "rating": 4.9
   },
   {
@@ -195,6 +212,7 @@
     },
     "image_url": "https://images.unsplash.com/photo-1469474968028-56623f02e42e",
     "short_description": "Fixed (lunch) menu, cheap and tasty, just like home.",
+    "short_description_ro": "Meniu fix (de prânz), ieftin și gustos, ca acasă.",
     "rating": 4.3
   },
   {
@@ -206,6 +224,7 @@
     },
     "image_url": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
     "short_description": "Craft beer, quiz nights, and live sports. Popular student spot.",
+    "short_description_ro": "Bere artizanală, seri de quiz și sport live. Loc popular printre studenți.",
     "rating": 4.5
   },
   {
@@ -217,6 +236,7 @@
     },
     "image_url": "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee",
     "short_description": "Minimalist design, specialty coffee, and relaxing background music.",
+    "short_description_ro": "Design minimalist, cafea de specialitate și muzică de fundal relaxantă.",
     "rating": 4.7
   }
 ]

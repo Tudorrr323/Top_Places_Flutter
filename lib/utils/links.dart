@@ -11,6 +11,14 @@ Uri directionsUri(Place place) {
   });
 }
 
+/// A WhatsApp message asking for a table at [place]. There is no phone
+/// number in the data, so WhatsApp asks who to send it to.
+Uri whatsAppUri(Place place) {
+  // Spaces become %20, as in WhatsApp's own examples (Uri.https would use +).
+  final text = Uri.encodeComponent('Rezervare la ${place.name}');
+  return Uri.parse('https://wa.me/?text=$text');
+}
+
 /// Opens [uri] outside the app and shows a message when that is not possible.
 Future<void> openLink(BuildContext context, Uri uri) async {
   final messenger = ScaffoldMessenger.of(context);

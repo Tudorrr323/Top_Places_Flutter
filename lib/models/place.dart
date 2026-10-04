@@ -10,6 +10,7 @@ class Place {
     required this.lng,
     required this.imageUrl,
     required this.description,
+    this.descriptionRo,
     required this.rating,
   });
 
@@ -27,6 +28,7 @@ class Place {
       lng: (coordinates['long'] as num).toDouble(),
       imageUrl: json['image_url'] as String,
       description: json['short_description'] as String,
+      descriptionRo: json['short_description_ro'] as String?,
       rating: (json['rating'] as num).toDouble(),
     );
   }
@@ -38,7 +40,13 @@ class Place {
   final double lat;
   final double lng;
   final String imageUrl;
+
+  /// The original description, in English.
   final String description;
+
+  /// The Romanian translation of [description], or null if there is none.
+  final String? descriptionRo;
+
   final double rating;
 
   /// The city is the last part of the address ("Str. X, Nr. 1, Iași" -> "Iași").

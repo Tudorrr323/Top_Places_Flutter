@@ -27,6 +27,12 @@ void main() {
     }
   });
 
+  test('every place has a Romanian description', () {
+    for (final place in repository.places) {
+      expect(place.descriptionRo, isNotNull, reason: place.name);
+    }
+  });
+
   test('finds a place by id', () {
     expect(repository.placeById('cafe-new-world')?.city, 'Iași');
     expect(repository.placeById('does-not-exist'), isNull);
