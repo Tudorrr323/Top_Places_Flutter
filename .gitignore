@@ -46,3 +46,7 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Local config with API keys (config/dev.json): never commit
+/config/*.json
+!/config/example.json
