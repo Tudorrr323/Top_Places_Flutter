@@ -50,3 +50,6 @@ app.*.map.json
 # Local config with API keys (config/dev.json): never commit
 /config/*.json
 !/config/example.json
+
+# Node packages for the database tests in supabase/tests
+node_modules/

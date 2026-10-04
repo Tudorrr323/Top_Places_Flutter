@@ -1,0 +1,11 @@
+{
+  "name": "top-places-db-tests",
+  "private": true,
+  "description": "Checks the rules in ../schema.sql on PGlite, a real Postgres that runs in Node.",
+  "scripts": {
+    "test": "node rules_test.js"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8"
+  }
+}
