@@ -12,6 +12,7 @@ import 'package:top_places/services/places_repository.dart';
 import 'package:top_places/view_models/account_view_model.dart';
 import 'package:top_places/view_models/explore_view_model.dart';
 import 'package:top_places/view_models/language_settings.dart';
+import 'package:top_places/view_models/theme_settings.dart';
 
 /// The blue of the original app (#007AFF), used to generate both themes.
 const _brandBlue = Color(0xFF007AFF);
@@ -24,6 +25,7 @@ class TopPlacesApp extends StatefulWidget {
     this.accounts,
     this.location = const DeviceLocationService(),
     this.language,
+    this.theme,
   });
 
   final PlacesRepository repository;
@@ -41,6 +43,9 @@ class TopPlacesApp extends StatefulWidget {
   /// The language of the app; Romanian, and not remembered, when null.
   final LanguageSettings? language;
 
+  /// Light or dark; like the system, and not remembered, when null.
+  final ThemeSettings? theme;
+
   @override
   State<TopPlacesApp> createState() => _TopPlacesAppState();
 }
@@ -49,6 +54,7 @@ class _TopPlacesAppState extends State<TopPlacesApp> {
   // Created once and kept across rebuilds, so the current page survives.
   final GoRouter _router = createRouter();
   late final _language = widget.language ?? LanguageSettings();
+  late final _theme = widget.theme ?? ThemeSettings();
 
   @override
   void dispose() {
@@ -79,10 +85,11 @@ class _TopPlacesAppState extends State<TopPlacesApp> {
           create: (context) => AccountViewModel(widget.accounts),
         ),
         ChangeNotifierProvider.value(value: _language),
+        ChangeNotifierProvider.value(value: _theme),
       ],
-      // Rebuilt with the texts of the new language when it changes.
-      child: Consumer<LanguageSettings>(
-        builder: (context, language, child) => MaterialApp.router(
+      // Rebuilt with the new language or theme when one changes.
+      child: Consumer2<LanguageSettings, ThemeSettings>(
+        builder: (context, language, theme, child) => MaterialApp.router(
           onGenerateTitle: (context) => context.l10n.appTitle,
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
@@ -94,7 +101,7 @@ class _TopPlacesAppState extends State<TopPlacesApp> {
               brightness: Brightness.dark,
             ),
           ),
-          themeMode: ThemeMode.system,
+          themeMode: theme.mode,
           locale: language.locale,
           supportedLocales: LanguageSettings.supported,
           localizationsDelegates: const [

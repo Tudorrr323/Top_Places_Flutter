@@ -288,5 +288,15 @@
   "chatSend": "Send",
   "chatYou": "You",
   "chatAssistant": "The assistant",
-  "showOnMap": "Show on the map"
+  "showOnMap": "Show on the map",
+  "theme": "Theme",
+  "themeSystem": "Automatic",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "showMoreReviews": "Show more ({count})",
+  "allReviewsTitle": "Reviews: {name}",
+  "filterAllStars": "All ({count})",
+  "filterStars": "{stars} ★ ({count})",
+  "noReviewsWithStars": "{stars, plural, =1{No 1-star reviews.} other{No {stars}-star reviews.}}",
+  "reviewAuthorYou": "{author} (you)"
 }

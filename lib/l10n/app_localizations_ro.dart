@@ -1056,4 +1056,52 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get showOnMap => 'Arată pe hartă';
+
+  @override
+  String get theme => 'Tema';
+
+  @override
+  String get themeSystem => 'Automată';
+
+  @override
+  String get themeLight => 'Luminoasă';
+
+  @override
+  String get themeDark => 'Întunecată';
+
+  @override
+  String showMoreReviews(int count) {
+    return 'Vezi mai multe ($count)';
+  }
+
+  @override
+  String allReviewsTitle(String name) {
+    return 'Recenzii: $name';
+  }
+
+  @override
+  String filterAllStars(int count) {
+    return 'Toate ($count)';
+  }
+
+  @override
+  String filterStars(int stars, int count) {
+    return '$stars ★ ($count)';
+  }
+
+  @override
+  String noReviewsWithStars(int stars) {
+    String _temp0 = intl.Intl.pluralLogic(
+      stars,
+      locale: localeName,
+      other: 'Nicio recenzie cu $stars stele.',
+      one: 'Nicio recenzie cu o stea.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String reviewAuthorYou(String author) {
+    return '$author (tu)';
+  }
 }

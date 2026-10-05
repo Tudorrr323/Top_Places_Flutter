@@ -7,6 +7,8 @@ import 'package:top_places/services/account_service.dart';
 import 'package:top_places/services/gemini_service.dart';
 import 'package:top_places/services/place_service.dart';
 import 'package:top_places/services/places_repository.dart';
+import 'package:top_places/view_models/language_settings.dart';
+import 'package:top_places/view_models/theme_settings.dart';
 
 Future<void> main() async {
   // Needed before reading assets with rootBundle, which happens before runApp.
@@ -32,7 +34,16 @@ Future<void> main() async {
   // The bundled places show at once; the live list replaces them when it
   // arrives. Offline, the bundled ones stay.
   unawaited(repository.refresh());
+  // The language and the theme chosen last time, before the first frame.
+  final language = await LanguageSettings.load();
+  final theme = await ThemeSettings.load();
   runApp(
-    TopPlacesApp(repository: repository, gemini: gemini, accounts: accounts),
+    TopPlacesApp(
+      repository: repository,
+      gemini: gemini,
+      accounts: accounts,
+      language: language,
+      theme: theme,
+    ),
   );
 }

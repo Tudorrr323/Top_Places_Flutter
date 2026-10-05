@@ -1045,4 +1045,52 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get showOnMap => 'Show on the map';
+
+  @override
+  String get theme => 'Theme';
+
+  @override
+  String get themeSystem => 'Automatic';
+
+  @override
+  String get themeLight => 'Light';
+
+  @override
+  String get themeDark => 'Dark';
+
+  @override
+  String showMoreReviews(int count) {
+    return 'Show more ($count)';
+  }
+
+  @override
+  String allReviewsTitle(String name) {
+    return 'Reviews: $name';
+  }
+
+  @override
+  String filterAllStars(int count) {
+    return 'All ($count)';
+  }
+
+  @override
+  String filterStars(int stars, int count) {
+    return '$stars ★ ($count)';
+  }
+
+  @override
+  String noReviewsWithStars(int stars) {
+    String _temp0 = intl.Intl.pluralLogic(
+      stars,
+      locale: localeName,
+      other: 'No $stars-star reviews.',
+      one: 'No 1-star reviews.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String reviewAuthorYou(String author) {
+    return '$author (you)';
+  }
 }

@@ -4,10 +4,12 @@ import 'package:top_places/l10n/l10n.dart';
 import 'package:top_places/models/place.dart';
 import 'package:top_places/models/profile.dart';
 import 'package:top_places/models/rating.dart';
+import 'package:top_places/screens/all_reviews_screen.dart';
 import 'package:top_places/services/place_service.dart';
 import 'package:top_places/services/places_repository.dart';
 import 'package:top_places/view_models/account_view_model.dart';
 import 'package:top_places/widgets/dialogs.dart';
+import 'package:top_places/widgets/review_tile.dart';
 
 /// The "Recenzii" tab: what the rating is made of, the signed-in account's
 /// own review, and the accepted reviews of everyone else. The database
@@ -295,7 +297,7 @@ class _MyReviewState extends State<_MyReview> {
           children: [
             Row(
               children: [
-                Expanded(child: _Stars(stars: saved.stars)),
+                Expanded(child: StarRow(stars: saved.stars)),
                 Chip(avatar: Icon(icon), label: Text(status)),
               ],
             ),
@@ -394,8 +396,8 @@ class _MyReviewState extends State<_MyReview> {
   }
 }
 
-/// The accepted reviews of everyone else, newest first. Anyone sees them,
-/// signed in or not.
+/// The newest accepted reviews of everyone else, and a button to all of
+/// them when there are more. Anyone sees them, signed in or not.
 class _PublicReviews extends StatefulWidget {
   const _PublicReviews({required this.place});
 
@@ -406,6 +408,9 @@ class _PublicReviews extends StatefulWidget {
 }
 
 class _PublicReviewsState extends State<_PublicReviews> {
+  /// How many reviews show here; the rest are one tap away.
+  static const _preview = 3;
+
   late final PlaceService _service;
   late Future<List<Rating>> _ratings;
 
@@ -450,7 +455,7 @@ class _PublicReviewsState extends State<_PublicReviews> {
               return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.error case final error?) {
-              return Text(error.toString(), style: muted);
+              return Text(context.l10n.error(error), style: muted);
             }
             // The reader's own review is above, with its status.
             final others = [
@@ -463,78 +468,29 @@ class _PublicReviewsState extends State<_PublicReviews> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final rating in others) _ReviewTile(rating: rating),
+                for (final rating in others.take(_preview))
+                  ReviewTile(rating: rating),
+                if (others.length > _preview)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (context) =>
+                              AllReviewsScreen(place: widget.place),
+                        ),
+                      ),
+                      // Every review, the reader's own included.
+                      child: Text(
+                        context.l10n.showMoreReviews(snapshot.data!.length),
+                      ),
+                    ),
+                  ),
               ],
             );
           },
         ),
       ],
-    );
-  }
-}
-
-/// One accepted review: who wrote it and when, the stars and the message.
-class _ReviewTile extends StatelessWidget {
-  const _ReviewTile({required this.rating});
-
-  final Rating rating;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(rating.author, style: theme.textTheme.titleSmall),
-              ),
-              Text(
-                context.l10n.date(rating.updatedAt),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 2),
-          _Stars(stars: rating.stars),
-          if (rating.comment case final comment?) ...[
-            const SizedBox(height: 4),
-            Text(comment),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// Five stars, [stars] of them filled. Read as "4 stele" instead of five
-/// icons.
-class _Stars extends StatelessWidget {
-  const _Stars({required this.stars});
-
-  final int stars;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: context.l10n.stars(stars),
-      excludeSemantics: true,
-      child: Row(
-        children: [
-          for (var star = 1; star <= 5; star++)
-            Icon(
-              star <= stars ? Icons.star : Icons.star_border,
-              size: 18,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-        ],
-      ),
     );
   }
 }

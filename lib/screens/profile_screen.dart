@@ -7,7 +7,9 @@ import 'package:top_places/screens/admin_users_screen.dart';
 import 'package:top_places/screens/ratings_moderation_screen.dart';
 import 'package:top_places/view_models/account_view_model.dart';
 import 'package:top_places/view_models/language_settings.dart';
+import 'package:top_places/view_models/theme_settings.dart';
 import 'package:top_places/widgets/dialogs.dart';
+import 'package:top_places/widgets/language_flag.dart';
 import 'package:top_places/widgets/my_places.dart';
 
 /// The Profil tab: sign in or create an account; once signed in, the
@@ -377,7 +379,8 @@ class _AccountDetails extends StatelessWidget {
   };
 }
 
-/// The settings of the app, with or without an account: the language.
+/// The settings of the app, with or without an account: the language and
+/// the theme.
 class _Settings extends StatelessWidget {
   const _Settings();
 
@@ -385,6 +388,7 @@ class _Settings extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final language = context.watch<LanguageSettings>();
+    final theme = context.watch<ThemeSettings>();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -397,25 +401,74 @@ class _Settings extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Text(l10n.language),
-        const SizedBox(height: 8),
-        SegmentedButton<Locale>(
-          // Each language written in itself, so it can be found from the
-          // other one.
-          segments: const [
-            ButtonSegment(
-              value: LanguageSettings.romanian,
-              label: Text('Română'),
-            ),
-            ButtonSegment(
-              value: LanguageSettings.english,
-              label: Text('English'),
-            ),
-          ],
-          selected: {language.locale},
-          showSelectedIcon: false,
-          onSelectionChanged: (selection) => language.choose(selection.single),
+        // Icons, each with its name as a tooltip, which screen readers say.
+        _SettingRow(
+          label: l10n.language,
+          choice: SegmentedButton<Locale>(
+            segments: [
+              // Each language named in itself, so it can be found from the
+              // other one.
+              for (final (locale, name) in const [
+                (LanguageSettings.romanian, 'Română'),
+                (LanguageSettings.english, 'English'),
+              ])
+                ButtonSegment(
+                  value: locale,
+                  icon: LanguageFlag(locale),
+                  tooltip: name,
+                ),
+            ],
+            selected: {language.locale},
+            showSelectedIcon: false,
+            onSelectionChanged: (selection) =>
+                language.choose(selection.single),
+          ),
         ),
+        const SizedBox(height: 8),
+        _SettingRow(
+          label: l10n.theme,
+          choice: SegmentedButton<ThemeMode>(
+            segments: [
+              ButtonSegment(
+                value: ThemeMode.system,
+                icon: const Icon(Icons.brightness_auto),
+                tooltip: l10n.themeSystem,
+              ),
+              ButtonSegment(
+                value: ThemeMode.light,
+                icon: const Icon(Icons.light_mode),
+                tooltip: l10n.themeLight,
+              ),
+              ButtonSegment(
+                value: ThemeMode.dark,
+                icon: const Icon(Icons.dark_mode),
+                tooltip: l10n.themeDark,
+              ),
+            ],
+            selected: {theme.mode},
+            showSelectedIcon: false,
+            onSelectionChanged: (selection) => theme.choose(selection.single),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A setting on one line: its name, and the choice next to it.
+class _SettingRow extends StatelessWidget {
+  const _SettingRow({required this.label, required this.choice});
+
+  final String label;
+  final Widget choice;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(child: Text(label)),
+        const SizedBox(width: 16),
+        choice,
       ],
     );
   }

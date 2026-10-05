@@ -259,6 +259,10 @@ class _PlacesMapState extends State<PlacesMap>
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
               // The OpenStreetMap tile policy asks apps to identify themselves.
               userAgentPackageName: 'com.tudorrrr.top_places',
+              // Darker in the dark theme, so that it does not glare.
+              tileBuilder: Theme.of(context).brightness == Brightness.dark
+                  ? darkModeTileBuilder
+                  : null,
             ),
             // Under the places, so that they stay easy to tap.
             if (myLocation != null)

@@ -384,6 +384,60 @@ async function main() {
   check(row.description_ro === 'Descriere local test' && row.description === 'Descriere local test',
     'its one description becomes the Romanian one too');
 
+  console.log('The demo (seed_demo.sql)');
+  const demo = await newDatabase();
+  const operatorId = (await demo.query(
+    "insert into auth.users (email, raw_user_meta_data) values ('operator@test.ro', '{}') returning id")).rows[0].id;
+  await demo.query("update public.profiles set role = 'operator' where id = $1", [operatorId]);
+  const seed = fs.readFileSync(path.join(__dirname, '..', 'seed_demo.sql'), 'utf8');
+  await demo.exec(seed);
+  const count = async (query, params = []) => Number((await demo.query(query, params)).rows[0].count);
+  check((await count('select count(*) from public.public_places')) === 84, 'adds 64 public places to the 20');
+  const reviews = await count("select count(*) from public.ratings where status = 'approved'");
+  check(reviews > 1500, `with many public reviews (${reviews})`);
+  check((await count("select count(*) from public.ratings where status = 'pending'")) > 0 &&
+    (await count("select count(*) from public.ratings where status = 'rejected' and status_reason is not null")) > 0,
+    'and some waiting or rejected, with a reason');
+  check((await count(`select count(*) from public.places p where p.rating_count <> (
+      select count(*) from public.ratings r where r.place_id = p.id and r.status = 'approved')
+    or (p.rating_count > 0 and p.rating <> (select round(avg(r.stars), 1) from public.ratings r
+      where r.place_id = p.id and r.status = 'approved'))`)) === 0,
+    'every rating is the average of the public reviews');
+  check((await count('select count(*) from (select distinct stars from public.ratings) s')) === 5,
+    'the reviews have every number of stars');
+  check((await count('select count(*) from (select distinct updated_at::date from public.ratings) d')) > 300,
+    'each written on its own day, not all today');
+  check((await count('select count(*) from public.public_places where rating is null')) > 0,
+    'a few new places have no reviews yet');
+  check((await count("select count(*) from public.places where id in ('tea-house-sunset', 'bread-and-coffee') and rating_count = 0 and rating is not null")) === 2,
+    'and a few original places keep the rating of the old app');
+  check((await count('select count(*) from public.places where owner_id = $1', [operatorId])) === 6,
+    'the test operator owns a few places');
+  await demo.query("select set_config('request.jwt.claims', $1, false)", [JSON.stringify({ sub: operatorId, role: 'authenticated' })]);
+  await demo.exec('set role authenticated');
+  const toDecide = Number((await demo.query("select count(*) from public.ratings_to_moderate() where status = 'pending'")).rows[0].count);
+  await demo.exec('reset role');
+  await demo.query("select set_config('request.jwt.claims', '', false)");
+  check(toDecide > 0, `and has reviews to accept (${toDecide})`);
+  const before = await count('select count(*) from public.ratings');
+  await demo.exec(seed);
+  check((await count('select count(*) from public.ratings')) === before &&
+    (await count('select count(*) from public.public_places')) === 84, 'running it again changes nothing');
+  const reviewer = (await demo.query("select id from public.profiles where email like '%@demo.ro' order by email limit 1")).rows[0].id;
+  await demo.query("select set_config('request.jwt.claims', $1, false)", [JSON.stringify({ sub: reviewer, role: 'authenticated' })]);
+  await demo.exec('set role authenticated');
+  await demo.query("insert into public.ratings (place_id, stars, comment) values ('the-literary-coffee-house-citadel', 4, 'Nou') " +
+    'on conflict (place_id, user_id) do update set stars = excluded.stars, comment = excluded.comment');
+  row = (await demo.query("select status, updated_at::date = now()::date as today from public.ratings where place_id = 'the-literary-coffee-house-citadel' and user_id = $1", [reviewer])).rows[0];
+  await demo.exec('reset role');
+  await demo.query("select set_config('request.jwt.claims', '', false)");
+  check(row.status === 'pending' && row.today, 'afterwards, reviews wait and get their date as always');
+  await demo.exec(fs.readFileSync(path.join(__dirname, '..', 'seed_demo_remove.sql'), 'utf8'));
+  check((await count('select count(*) from public.public_places')) === 20 &&
+    (await count("select count(*) from public.profiles where email like '%@demo.ro'")) === 0 &&
+    (await count('select count(*) from public.ratings')) === 0,
+    'seed_demo_remove.sql takes it all out again');
+
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);
 }

@@ -406,6 +406,9 @@ class _PositionPicker extends StatelessWidget {
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                   userAgentPackageName: 'com.tudorrrr.top_places',
+                  tileBuilder: theme.brightness == Brightness.dark
+                      ? darkModeTileBuilder
+                      : null,
                 ),
                 if (position != null)
                   MarkerLayer(

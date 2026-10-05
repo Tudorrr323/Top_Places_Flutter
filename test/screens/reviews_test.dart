@@ -7,6 +7,7 @@ import 'package:top_places/models/profile.dart';
 import 'package:top_places/models/rating.dart';
 import 'package:top_places/screens/explore_screen.dart';
 import 'package:top_places/services/places_repository.dart';
+import 'package:top_places/widgets/review_tile.dart';
 
 import '../fake_account_service.dart';
 import '../fake_place_service.dart';
@@ -323,5 +324,50 @@ void main() {
 
     expect(find.text('Despre locație'), findsOne);
     expect(find.text('Ce spun ceilalți'), findsNothing);
+  });
+
+  testWidgets('a few reviews show; all of them, by stars, one tap away', (
+    tester,
+  ) async {
+    await openReviews(
+      tester,
+      ratings: [
+        for (var stars = 1; stars <= 5; stars++)
+          review(
+            'u$stars',
+            'Autor $stars',
+            stars: stars,
+            comment: 'Părerea $stars.',
+          ),
+      ],
+    );
+    expect(find.byType(ReviewTile), findsNWidgets(3));
+
+    await tester.ensureVisible(find.text('Vezi mai multe (5)'));
+    await tester.tap(find.text('Vezi mai multe (5)'));
+    await tester.pumpAndSettle();
+    expect(find.text('Recenzii: Ceainăria Dan'), findsOne);
+    expect(find.byType(ReviewTile), findsNWidgets(5));
+
+    await tester.tap(find.text('1 ★ (1)'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ReviewTile), findsOne);
+    expect(find.text('Părerea 1.'), findsOne);
+
+    await tester.tap(find.text('Toate (5)'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ReviewTile), findsNWidgets(5));
+  });
+
+  testWidgets('with three reviews or fewer there is nothing more to show', (
+    tester,
+  ) async {
+    await openReviews(
+      tester,
+      ratings: [review('u1', 'Autor 1'), review('u2', 'Autor 2')],
+    );
+
+    expect(find.byType(ReviewTile), findsNWidgets(2));
+    expect(find.textContaining('Vezi mai multe'), findsNothing);
   });
 }

@@ -667,5 +667,60 @@
   "chatSend": "Trimite",
   "chatYou": "Tu",
   "chatAssistant": "Asistentul",
-  "showOnMap": "Arată pe hartă"
+  "showOnMap": "Arată pe hartă",
+  "theme": "Tema",
+  "themeSystem": "Automată",
+  "themeLight": "Luminoasă",
+  "themeDark": "Întunecată",
+  "showMoreReviews": "Vezi mai multe ({count})",
+  "@showMoreReviews": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "allReviewsTitle": "Recenzii: {name}",
+  "@allReviewsTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "filterAllStars": "Toate ({count})",
+  "@filterAllStars": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "filterStars": "{stars} ★ ({count})",
+  "@filterStars": {
+    "placeholders": {
+      "stars": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noReviewsWithStars": "{stars, plural, =1{Nicio recenzie cu o stea.} other{Nicio recenzie cu {stars} stele.}}",
+  "@noReviewsWithStars": {
+    "placeholders": {
+      "stars": {
+        "type": "int"
+      }
+    }
+  },
+  "reviewAuthorYou": "{author} (tu)",
+  "@reviewAuthorYou": {
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  }
 }

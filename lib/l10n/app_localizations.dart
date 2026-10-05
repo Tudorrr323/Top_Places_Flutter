@@ -1831,6 +1831,66 @@ abstract class AppLocalizations {
   /// In ro, this message translates to:
   /// **'Arată pe hartă'**
   String get showOnMap;
+
+  /// No description provided for @theme.
+  ///
+  /// In ro, this message translates to:
+  /// **'Tema'**
+  String get theme;
+
+  /// No description provided for @themeSystem.
+  ///
+  /// In ro, this message translates to:
+  /// **'Automată'**
+  String get themeSystem;
+
+  /// No description provided for @themeLight.
+  ///
+  /// In ro, this message translates to:
+  /// **'Luminoasă'**
+  String get themeLight;
+
+  /// No description provided for @themeDark.
+  ///
+  /// In ro, this message translates to:
+  /// **'Întunecată'**
+  String get themeDark;
+
+  /// No description provided for @showMoreReviews.
+  ///
+  /// In ro, this message translates to:
+  /// **'Vezi mai multe ({count})'**
+  String showMoreReviews(int count);
+
+  /// No description provided for @allReviewsTitle.
+  ///
+  /// In ro, this message translates to:
+  /// **'Recenzii: {name}'**
+  String allReviewsTitle(String name);
+
+  /// No description provided for @filterAllStars.
+  ///
+  /// In ro, this message translates to:
+  /// **'Toate ({count})'**
+  String filterAllStars(int count);
+
+  /// No description provided for @filterStars.
+  ///
+  /// In ro, this message translates to:
+  /// **'{stars} ★ ({count})'**
+  String filterStars(int stars, int count);
+
+  /// No description provided for @noReviewsWithStars.
+  ///
+  /// In ro, this message translates to:
+  /// **'{stars, plural, =1{Nicio recenzie cu o stea.} other{Nicio recenzie cu {stars} stele.}}'**
+  String noReviewsWithStars(int stars);
+
+  /// No description provided for @reviewAuthorYou.
+  ///
+  /// In ro, this message translates to:
+  /// **'{author} (tu)'**
+  String reviewAuthorYou(String author);
 }
 
 class _AppLocalizationsDelegate

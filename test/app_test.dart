@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:top_places/app.dart';
 import 'package:top_places/services/places_repository.dart';
 import 'package:top_places/view_models/language_settings.dart';
+import 'package:top_places/view_models/theme_settings.dart';
 
 void main() {
   final repository = PlacesRepository.fromJsonStrings(
@@ -68,8 +69,8 @@ void main() {
     await tester.tap(find.text('Profil'));
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('English'));
-    await tester.tap(find.text('English'));
+    await tester.ensureVisible(find.byTooltip('English'));
+    await tester.tap(find.byTooltip('English'));
     await tester.pumpAndSettle();
 
     expect(language.locale, LanguageSettings.english);
@@ -82,5 +83,28 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Search places or cities...'), findsOneWidget);
     expect(find.text('20 results'), findsOneWidget);
+  });
+
+  testWidgets('the dark theme, chosen on the Profil tab', (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final theme = ThemeSettings();
+    await tester.pumpWidget(TopPlacesApp(repository: repository, theme: theme));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Profil'));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.byTooltip('Întunecată'));
+    await tester.tap(find.byTooltip('Întunecată'));
+    await tester.pumpAndSettle();
+
+    expect(theme.mode, ThemeMode.dark);
+    final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(app.themeMode, ThemeMode.dark);
+    expect(
+      Theme.of(tester.element(find.text('Profil').last)).brightness,
+      Brightness.dark,
+    );
   });
 }
