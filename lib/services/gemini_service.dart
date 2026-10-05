@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:top_places/models/chat_message.dart';
 
 /// The key from config/dev.json, passed in with --dart-define-from-file.
 /// Empty when the app runs without that file, e.g. right after cloning.
@@ -45,8 +46,13 @@ class GeminiService {
   final http.Client _client;
 
   /// Sends [prompt] to the model, which follows [instructions], and returns
-  /// the text of its answer.
-  Future<String> generate(String prompt, {required String instructions}) async {
+  /// the text of its answer. [history] is the conversation so far, oldest
+  /// first, so that "și în Cluj?" is understood.
+  Future<String> generate(
+    String prompt, {
+    required String instructions,
+    List<ChatMessage> history = const [],
+  }) async {
     final uri = Uri.https(
       'generativelanguage.googleapis.com',
       '/v1beta/models/$model:generateContent',
@@ -67,7 +73,17 @@ class GeminiService {
                 ],
               },
               'contents': [
+                // The assistant's turns, rules and Gemini alike, are the
+                // model's.
+                for (final message in history)
+                  {
+                    'role': message.fromUser ? 'user' : 'model',
+                    'parts': [
+                      {'text': message.text},
+                    ],
+                  },
                 {
+                  'role': 'user',
                   'parts': [
                     {'text': prompt},
                   ],

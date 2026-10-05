@@ -1921,6 +1921,96 @@ abstract class AppLocalizations {
   /// In ro, this message translates to:
   /// **'Toate orașele'**
   String get allCities;
+
+  /// No description provided for @chatHistory.
+  ///
+  /// In ro, this message translates to:
+  /// **'Conversații'**
+  String get chatHistory;
+
+  /// No description provided for @chatNew.
+  ///
+  /// In ro, this message translates to:
+  /// **'Conversație nouă'**
+  String get chatNew;
+
+  /// No description provided for @chatHistorySignIn.
+  ///
+  /// In ro, this message translates to:
+  /// **'Intră în cont ca să-ți păstrezi conversațiile cu asistentul, pe orice dispozitiv.'**
+  String get chatHistorySignIn;
+
+  /// No description provided for @chatHistoryEmpty.
+  ///
+  /// In ro, this message translates to:
+  /// **'Nicio conversație încă. Ce scrii în chat se păstrează aici.'**
+  String get chatHistoryEmpty;
+
+  /// No description provided for @chatHistoryNotLoaded.
+  ///
+  /// In ro, this message translates to:
+  /// **'Conversațiile nu s-au putut încărca.'**
+  String get chatHistoryNotLoaded;
+
+  /// No description provided for @tryAgain.
+  ///
+  /// In ro, this message translates to:
+  /// **'Încearcă din nou'**
+  String get tryAgain;
+
+  /// No description provided for @chatNotSaved.
+  ///
+  /// In ro, this message translates to:
+  /// **'Mesajele nu s-au putut salva în istoric. Verifică internetul.'**
+  String get chatNotSaved;
+
+  /// No description provided for @chatNotOpened.
+  ///
+  /// In ro, this message translates to:
+  /// **'Conversația nu s-a putut deschide. Verifică internetul.'**
+  String get chatNotOpened;
+
+  /// No description provided for @chatNotChanged.
+  ///
+  /// In ro, this message translates to:
+  /// **'Conversația nu s-a putut schimba. Verifică internetul.'**
+  String get chatNotChanged;
+
+  /// No description provided for @chatConversationActions.
+  ///
+  /// In ro, this message translates to:
+  /// **'Opțiuni pentru conversație'**
+  String get chatConversationActions;
+
+  /// No description provided for @chatRename.
+  ///
+  /// In ro, this message translates to:
+  /// **'Redenumește'**
+  String get chatRename;
+
+  /// No description provided for @chatRenameTitle.
+  ///
+  /// In ro, this message translates to:
+  /// **'Redenumește conversația'**
+  String get chatRenameTitle;
+
+  /// No description provided for @chatTitleLabel.
+  ///
+  /// In ro, this message translates to:
+  /// **'Titlu'**
+  String get chatTitleLabel;
+
+  /// No description provided for @chatDeleteTitle.
+  ///
+  /// In ro, this message translates to:
+  /// **'Ștergi conversația?'**
+  String get chatDeleteTitle;
+
+  /// No description provided for @chatDeleteMessage.
+  ///
+  /// In ro, this message translates to:
+  /// **'„{title}” dispare, cu toate mesajele ei.'**
+  String chatDeleteMessage(String title);
 }
 
 class _AppLocalizationsDelegate

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:top_places/app.dart';
 import 'package:top_places/services/account_service.dart';
+import 'package:top_places/services/chat_history_service.dart';
 import 'package:top_places/services/gemini_service.dart';
 import 'package:top_places/services/place_service.dart';
 import 'package:top_places/services/places_repository.dart';
@@ -21,6 +22,7 @@ Future<void> main() async {
   // the places come only from the JSON bundled with the app.
   AccountService? accounts;
   PlaceService? places;
+  ChatHistoryService? chats;
   if (supabaseUrl.isNotEmpty && supabasePublishableKey.isNotEmpty) {
     // Also brings back the session saved on the device, if there is one.
     await Supabase.initialize(
@@ -29,6 +31,7 @@ Future<void> main() async {
     );
     accounts = SupabaseAccountService(Supabase.instance.client);
     places = SupabasePlaceService(Supabase.instance.client);
+    chats = SupabaseChatHistoryService(Supabase.instance.client);
   }
   final repository = await PlacesRepository.load(remote: places);
   // The bundled places show at once; the live list replaces them when it
@@ -42,6 +45,7 @@ Future<void> main() async {
       repository: repository,
       gemini: gemini,
       accounts: accounts,
+      chats: chats,
       language: language,
       theme: theme,
     ),

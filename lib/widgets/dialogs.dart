@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:top_places/l10n/l10n.dart';
+import 'package:top_places/models/conversation.dart';
 
 /// Asks for a first and a last name, starting from the current ones.
 /// Returns them, or null when cancelled.
@@ -24,6 +25,15 @@ Future<String?> askReason(
   return showDialog<String>(
     context: context,
     builder: (context) => _ReasonDialog(title: title, action: action),
+  );
+}
+
+/// Asks for a new title, starting from [title]. Returns it, or null when
+/// cancelled.
+Future<String?> askTitle(BuildContext context, {required String title}) {
+  return showDialog<String>(
+    context: context,
+    builder: (context) => _TitleDialog(title: title),
   );
 }
 
@@ -108,6 +118,66 @@ class _NameDialogState extends State<_NameDialog> {
               onFieldSubmitted: (_) => _save(),
             ),
           ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(l10n.cancel),
+        ),
+        FilledButton(onPressed: _save, child: Text(l10n.save)),
+      ],
+    );
+  }
+}
+
+class _TitleDialog extends StatefulWidget {
+  const _TitleDialog({required this.title});
+
+  final String title;
+
+  @override
+  State<_TitleDialog> createState() => _TitleDialogState();
+}
+
+class _TitleDialogState extends State<_TitleDialog> {
+  final _formKey = GlobalKey<FormState>();
+
+  // Selected, so that typing replaces it.
+  late final _title = TextEditingController(text: widget.title)
+    ..selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: widget.title.length,
+    );
+
+  @override
+  void dispose() {
+    _title.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    if (_formKey.currentState!.validate()) {
+      Navigator.pop(context, _title.text.trim());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return AlertDialog(
+      title: Text(l10n.chatRenameTitle),
+      content: Form(
+        key: _formKey,
+        child: TextFormField(
+          controller: _title,
+          autofocus: true,
+          decoration: InputDecoration(labelText: l10n.chatTitleLabel),
+          maxLength: maxTitleLength,
+          validator: (value) =>
+              value == null || value.trim().isEmpty ? l10n.requiredField : null,
+          onFieldSubmitted: (_) => _save(),
         ),
       ),
       actions: [

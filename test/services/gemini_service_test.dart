@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:top_places/models/chat_message.dart';
 import 'package:top_places/services/gemini_service.dart';
 
 import '../fake_gemini.dart';
@@ -67,6 +70,39 @@ void main() {
     await expectLater(
       gemini.generate('Salut', instructions: ''),
       throwsA(isA<GeminiException>()),
+    );
+  });
+
+  test('sends the conversation so far, the assistant as the model', () async {
+    late http.Request sent;
+    final gemini = GeminiService(
+      apiKey: 'test-key',
+      client: MockClient((request) async {
+        sent = request;
+        return geminiAnswer('Da, au și deserturi.');
+      }),
+    );
+
+    await gemini.generate(
+      'Au și deserturi?',
+      instructions: '',
+      history: const [
+        ChatMessage.user('Caut mâncare vegană în București'),
+        ChatMessage.bot('Am găsit „The Green Garden”.'),
+      ],
+    );
+
+    final contents = (jsonDecode(sent.body) as Map)['contents'] as List;
+    expect(
+      [
+        for (final turn in contents.cast<Map<String, dynamic>>())
+          '${turn['role']}: ${turn['parts'][0]['text']}',
+      ],
+      [
+        'user: Caut mâncare vegană în București',
+        'model: Am găsit „The Green Garden”.',
+        'user: Au și deserturi?',
+      ],
     );
   });
 }

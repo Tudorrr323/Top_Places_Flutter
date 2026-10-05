@@ -1123,4 +1123,56 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get allCities => 'Toate orașele';
+
+  @override
+  String get chatHistory => 'Conversații';
+
+  @override
+  String get chatNew => 'Conversație nouă';
+
+  @override
+  String get chatHistorySignIn =>
+      'Intră în cont ca să-ți păstrezi conversațiile cu asistentul, pe orice dispozitiv.';
+
+  @override
+  String get chatHistoryEmpty =>
+      'Nicio conversație încă. Ce scrii în chat se păstrează aici.';
+
+  @override
+  String get chatHistoryNotLoaded => 'Conversațiile nu s-au putut încărca.';
+
+  @override
+  String get tryAgain => 'Încearcă din nou';
+
+  @override
+  String get chatNotSaved =>
+      'Mesajele nu s-au putut salva în istoric. Verifică internetul.';
+
+  @override
+  String get chatNotOpened =>
+      'Conversația nu s-a putut deschide. Verifică internetul.';
+
+  @override
+  String get chatNotChanged =>
+      'Conversația nu s-a putut schimba. Verifică internetul.';
+
+  @override
+  String get chatConversationActions => 'Opțiuni pentru conversație';
+
+  @override
+  String get chatRename => 'Redenumește';
+
+  @override
+  String get chatRenameTitle => 'Redenumește conversația';
+
+  @override
+  String get chatTitleLabel => 'Titlu';
+
+  @override
+  String get chatDeleteTitle => 'Ștergi conversația?';
+
+  @override
+  String chatDeleteMessage(String title) {
+    return '„$title” dispare, cu toate mesajele ei.';
+  }
 }

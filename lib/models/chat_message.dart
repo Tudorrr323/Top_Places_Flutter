@@ -22,6 +22,9 @@ class ShowCity extends ChatAction {
   final String city;
 }
 
+/// The longest message the history keeps.
+const maxMessageLength = 4000;
+
 /// One message in the chat: from the user, from the assistant's rules, or
 /// written by Gemini.
 class ChatMessage {
@@ -38,6 +41,28 @@ class ChatMessage {
     : fromUser = false,
       fromAi = true;
 
+  /// A message from the history. [placeById] finds the place of its
+  /// button; a place no longer in the app leaves the answer without one.
+  factory ChatMessage.fromRow(
+    Map<String, dynamic> row, {
+    required Place? Function(String id) placeById,
+  }) {
+    final text = row['body'] as String;
+    final placeId = row['place_id'] as String?;
+    final place = placeId == null ? null : placeById(placeId);
+    final city = row['city'] as String?;
+    final action = place != null
+        ? ShowPlace(place)
+        : city != null
+        ? ShowCity(city)
+        : null;
+    return switch (row['author']) {
+      'user' => ChatMessage.user(text),
+      'ai' => ChatMessage.ai(text, action: action),
+      _ => ChatMessage.bot(text, action: action),
+    };
+  }
+
   final String text;
   final bool fromUser;
 
@@ -46,4 +71,25 @@ class ChatMessage {
 
   /// Only answers from the assistant can have one.
   final ChatAction? action;
+
+  /// The row of chat_messages, without its conversation. A very long
+  /// message is cut to what the database takes.
+  Map<String, Object?> toRow() => {
+    'author': fromUser
+        ? 'user'
+        : fromAi
+        ? 'ai'
+        : 'bot',
+    'body': text.length > maxMessageLength
+        ? text.substring(0, maxMessageLength)
+        : text,
+    'place_id': switch (action) {
+      ShowPlace(:final place) => place.id,
+      _ => null,
+    },
+    'city': switch (action) {
+      ShowCity(:final city) => city,
+      _ => null,
+    },
+  };
 }

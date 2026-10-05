@@ -303,5 +303,20 @@
   "withCount": "{label} ({count})",
   "all": "All",
   "inReview": "In review",
-  "allCities": "All cities"
+  "allCities": "All cities",
+  "chatHistory": "Conversations",
+  "chatNew": "New chat",
+  "chatHistorySignIn": "Sign in to keep your conversations with the assistant, on any device.",
+  "chatHistoryEmpty": "No conversations yet. What you write in the chat is kept here.",
+  "chatHistoryNotLoaded": "The conversations could not be loaded.",
+  "tryAgain": "Try again",
+  "chatNotSaved": "The messages could not be saved in the history. Check the internet.",
+  "chatNotOpened": "The conversation could not be opened. Check the internet.",
+  "chatNotChanged": "The conversation could not be changed. Check the internet.",
+  "chatConversationActions": "Conversation options",
+  "chatRename": "Rename",
+  "chatRenameTitle": "Rename the conversation",
+  "chatTitleLabel": "Title",
+  "chatDeleteTitle": "Delete the conversation?",
+  "chatDeleteMessage": "“{title}” goes away, with all its messages."
 }

@@ -744,5 +744,27 @@
   },
   "all": "Toate",
   "inReview": "În verificare",
-  "allCities": "Toate orașele"
+  "allCities": "Toate orașele",
+  "chatHistory": "Conversații",
+  "chatNew": "Conversație nouă",
+  "chatHistorySignIn": "Intră în cont ca să-ți păstrezi conversațiile cu asistentul, pe orice dispozitiv.",
+  "chatHistoryEmpty": "Nicio conversație încă. Ce scrii în chat se păstrează aici.",
+  "chatHistoryNotLoaded": "Conversațiile nu s-au putut încărca.",
+  "tryAgain": "Încearcă din nou",
+  "chatNotSaved": "Mesajele nu s-au putut salva în istoric. Verifică internetul.",
+  "chatNotOpened": "Conversația nu s-a putut deschide. Verifică internetul.",
+  "chatNotChanged": "Conversația nu s-a putut schimba. Verifică internetul.",
+  "chatConversationActions": "Opțiuni pentru conversație",
+  "chatRename": "Redenumește",
+  "chatRenameTitle": "Redenumește conversația",
+  "chatTitleLabel": "Titlu",
+  "chatDeleteTitle": "Ștergi conversația?",
+  "chatDeleteMessage": "„{title}” dispare, cu toate mesajele ei.",
+  "@chatDeleteMessage": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  }
 }

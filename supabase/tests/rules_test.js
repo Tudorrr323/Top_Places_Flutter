@@ -26,6 +26,7 @@ const steps = [
   '005_reviews.sql',
   '006_admin_reviews.sql',
   '007_bilingual_places.sql',
+  '008_conversations.sql',
 ];
 
 // A new database with the first [count] steps run.
@@ -384,6 +385,69 @@ async function main() {
   check(row.description_ro === 'Descriere local test' && row.description === 'Descriere local test',
     'its one description becomes the Romanian one too');
 
+  console.log('Conversations with the assistant');
+  const start = (userId, title) => as(userId,
+    'insert into public.conversations (title) values ($1) returning id, user_id, title', [title]);
+  const say = (userId, conversationId, author, body, placeId = null, city = null) => as(userId,
+    'insert into public.chat_messages (conversation_id, author, body, place_id, city) ' +
+    'values ($1, $2, $3, $4, $5) returning id', [conversationId, author, body, placeId, city]);
+  row = (await start(dan, '  Cafea în Cluj  ')).rows[0];
+  const chat = row.id;
+  check(row.user_id === dan && row.title === 'Cafea în Cluj', 'an account starts a conversation, titled without spaces around');
+  check(await fails(start(dan, '   ')), 'a title of only spaces is refused');
+  check(await fails(start(dan, 'x'.repeat(81))), 'a title has at most 80 characters');
+  check(await fails(as(null, "insert into public.conversations (title) values ('X')")),
+    'visitors who are not signed in have no history');
+  check(await fails(as(dan, "insert into public.conversations (title, user_id) values ('X', $1)", [ion])),
+    "nobody starts a conversation in someone else's name");
+  await say(dan, chat, 'user', 'Vreau să beau ceva în Cluj-Napoca');
+  await say(dan, chat, 'bot', 'În Cluj-Napoca poți bea ceva la: Coffee Shop Zen.', null, 'Cluj-Napoca');
+  await say(dan, chat, 'ai', 'Îți recomand Coffee Shop Zen.', 'coffee-shop-zen');
+  row = (await as(dan, 'select author, place_id, city from public.chat_messages where conversation_id = $1 order by created_at, id', [chat])).rows;
+  check(row.map((message) => [message.author, message.place_id, message.city].join()).join('|') ===
+    'user,,|bot,,Cluj-Napoca|ai,coffee-shop-zen,', 'its messages come back in order, with what they show on the map');
+  check(await fails(say(dan, chat, 'user', 'Arată-mi', 'coffee-shop-zen')), "the user's messages show nothing on the map");
+  check(await fails(say(dan, chat, 'ai', 'Două', 'coffee-shop-zen', 'Cluj-Napoca')), 'an answer shows one thing, not two');
+  check(await fails(say(dan, chat, 'robot', 'Bip')), 'the author is the user, the rules or Gemini');
+  check(await fails(say(dan, chat, 'user', '')), 'a message is not empty');
+  check(await fails(as(dan,
+    "insert into public.chat_messages (conversation_id, author, body, created_at) values ($1, 'user', 'Ieri', now() - interval '1 day')", [chat])),
+    'nor dated by the app');
+  check(await fails(as(dan, "update public.chat_messages set body = 'Altceva' where conversation_id = $1", [chat])),
+    'a message is never changed afterwards');
+
+  check((await as(ion, 'select * from public.conversations')).rows.length === 0 &&
+    (await as(ion, 'select * from public.chat_messages')).rows.length === 0,
+    "nobody else reads someone's conversations");
+  check((await as(boss, 'select * from public.conversations')).rows.length === 0 &&
+    (await as(boss, 'select * from public.chat_messages')).rows.length === 0,
+    'not even an admin');
+  // Without "returning": that alone would fail, since he cannot read the row.
+  check(await fails(as(ion, "insert into public.chat_messages (conversation_id, author, body) values ($1, 'user', 'Salut')", [chat])),
+    "nobody writes in someone else's conversation");
+  check((await as(ion, "update public.conversations set title = 'X' where id = $1 returning id", [chat])).rows.length === 0 &&
+    (await as(ion, 'delete from public.conversations where id = $1 returning id', [chat])).rows.length === 0,
+    'nor renames or deletes it');
+  row = (await as(dan, "update public.conversations set title = ' Cafele în Cluj ' where id = $1 returning title", [chat])).rows[0];
+  check(row.title === 'Cafele în Cluj', 'the owner renames it');
+  check(await fails(as(dan, 'update public.conversations set user_id = $1 where id = $2', [ion, chat])),
+    'a conversation never changes hands');
+
+  const other = (await start(dan, 'Pizza')).rows[0].id;
+  const newest = async () => (await as(dan, 'select id from public.conversations order by updated_at desc limit 1')).rows[0].id;
+  check((await newest()) === other, 'the newest conversation comes first');
+  await say(dan, chat, 'user', 'Și un ceai?');
+  check((await newest()) === chat, 'a new message brings its conversation to the top');
+  await as(dan, 'delete from public.conversations where id = $1', [chat]);
+  check(Number((await asOwner('select count(*) from public.chat_messages where conversation_id = $1', [chat])).rows[0].count) === 0,
+    'deleting a conversation deletes its messages');
+  const eva = await signUp('eva@test.ro', 'Eva', 'Pop');
+  const evaChat = (await start(eva, 'Salut')).rows[0].id;
+  await say(eva, evaChat, 'user', 'Salut!');
+  await asOwner('delete from auth.users where id = $1', [eva]);
+  check(Number((await asOwner('select count(*) from public.conversations where id = $1', [evaChat])).rows[0].count) === 0,
+    'deleting an account deletes its conversations');
+
   console.log('The demo (seed_demo.sql)');
   const demo = await newDatabase();
   const operatorId = (await demo.query(
@@ -437,6 +501,53 @@ async function main() {
     (await count("select count(*) from public.profiles where email like '%@demo.ro'")) === 0 &&
     (await count('select count(*) from public.ratings')) === 0,
     'seed_demo_remove.sql takes it all out again');
+
+  console.log('Demo conversations (seed_conversations.sql)');
+  const talks = await newDatabase();
+  const accounts = [];
+  // Fixed ids, so that the shares are the same at every run.
+  for (const [n, email] of ['admin@test.ro', 'operator@test.ro', 'user@test.ro'].entries()) {
+    accounts.push((await talks.query(
+      "insert into auth.users (id, email, raw_user_meta_data) values ($1, $2, '{}') returning id",
+      [`00000000-0000-4000-8000-00000000000${n + 1}`, email])).rows[0].id);
+  }
+  await talks.exec(seed);
+  // A conversation of her own, from before.
+  const own = (await talks.query(
+    "insert into public.conversations (user_id, title) values ($1, 'A mea') returning id", [accounts[2]])).rows[0].id;
+  const conversationsSeed = fs.readFileSync(path.join(__dirname, '..', 'seed_conversations.sql'), 'utf8');
+  await talks.exec(conversationsSeed);
+  const talk = async (query, params = []) => Number((await talks.query(query, params)).rows[0].count);
+  const shares = [];
+  for (const id of accounts) {
+    shares.push((await talks.query('select title from public.conversations where user_id = $1 order by title', [id]))
+      .rows.map((conversation) => conversation.title).join('|'));
+  }
+  check(shares.every((share) => share.split('|').length >= 6), 'every account that can sign in gets conversations');
+  check(new Set(shares).size === 3, 'each its own share');
+  check((await talk("select count(*) from public.conversations c join auth.users u on u.id = c.user_id where u.email like '%@demo.ro'")) === 0,
+    'the demo reviewers get none');
+  check((await talk('select count(*) from public.conversations c where not exists (select 1 from public.chat_messages m where m.conversation_id = c.id) and c.id <> $1', [own])) === 0,
+    'every conversation has its messages');
+  check((await talk(`select count(*) from public.conversations c where c.id <> $1 and c.updated_at <> (
+      select max(m.created_at) from public.chat_messages m where m.conversation_id = c.id)`, [own])) === 0,
+    'and its time is that of its last message');
+  check((await talk("select count(*) from public.chat_messages where author = 'bot'")) > 0 &&
+    (await talk("select count(*) from public.chat_messages where author = 'ai'")) > 0 &&
+    (await talk('select count(*) from public.chat_messages where place_id is not null')) > 0 &&
+    (await talk('select count(*) from public.chat_messages where city is not null')) > 0,
+    'with answers of the rules and of Gemini, some with a place or a city on the map');
+  check((await talk("select count(*) from public.chat_messages where body like '%empfehle%' or body like '%consiglio%' or body like '%recomiendo%'")) > 0,
+    'in several languages');
+  check((await talk('select count(*) from (select distinct created_at::date from public.conversations) d')) > 10,
+    'from different days');
+  const talksBefore = await talk('select count(*) from public.chat_messages');
+  await talks.exec(conversationsSeed);
+  check((await talk('select count(*) from public.chat_messages')) === talksBefore, 'running it again changes nothing');
+  await talks.exec(fs.readFileSync(path.join(__dirname, '..', 'seed_conversations_remove.sql'), 'utf8'));
+  check((await talk('select count(*) from public.conversations')) === 1 &&
+    (await talk('select count(*) from public.conversations where id = $1', [own])) === 1,
+    "seed_conversations_remove.sql takes them out, and keeps people's own");
 
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);

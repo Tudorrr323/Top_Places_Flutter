@@ -5,11 +5,13 @@ import 'package:provider/provider.dart';
 import 'package:top_places/l10n/l10n.dart';
 import 'package:top_places/router.dart';
 import 'package:top_places/services/account_service.dart';
+import 'package:top_places/services/chat_history_service.dart';
 import 'package:top_places/services/gemini_service.dart';
 import 'package:top_places/services/location_service.dart';
 import 'package:top_places/services/place_service.dart';
 import 'package:top_places/services/places_repository.dart';
 import 'package:top_places/view_models/account_view_model.dart';
+import 'package:top_places/view_models/conversations_view_model.dart';
 import 'package:top_places/view_models/explore_view_model.dart';
 import 'package:top_places/view_models/language_settings.dart';
 import 'package:top_places/view_models/theme_settings.dart';
@@ -23,6 +25,7 @@ class TopPlacesApp extends StatefulWidget {
     required this.repository,
     this.gemini,
     this.accounts,
+    this.chats,
     this.location = const DeviceLocationService(),
     this.language,
     this.theme,
@@ -36,6 +39,9 @@ class TopPlacesApp extends StatefulWidget {
 
   /// Null without the Supabase values: the app then has no accounts.
   final AccountService? accounts;
+
+  /// The history of the chat; null without Supabase, like the accounts.
+  final ChatHistoryService? chats;
 
   /// Where the device is, for the GPS button on the map.
   final LocationService location;
@@ -83,6 +89,13 @@ class _TopPlacesAppState extends State<TopPlacesApp> {
         ),
         ChangeNotifierProvider(
           create: (context) => AccountViewModel(widget.accounts),
+        ),
+        // Follows the account above: its conversations, or none.
+        ChangeNotifierProvider(
+          create: (context) => ConversationsViewModel(
+            widget.chats,
+            context.read<AccountViewModel>(),
+          ),
         ),
         ChangeNotifierProvider.value(value: _language),
         ChangeNotifierProvider.value(value: _theme),

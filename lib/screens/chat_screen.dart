@@ -1,18 +1,28 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:top_places/l10n/l10n.dart';
 import 'package:top_places/models/chat_message.dart';
+import 'package:top_places/models/conversation.dart';
 import 'package:top_places/models/place.dart';
 import 'package:top_places/services/bot_engine.dart';
+import 'package:top_places/services/chat_history_service.dart';
 import 'package:top_places/services/gemini_service.dart';
 import 'package:top_places/services/places_repository.dart';
 import 'package:top_places/utils/text_normalize.dart';
+import 'package:top_places/view_models/conversations_view_model.dart';
 import 'package:top_places/view_models/explore_view_model.dart';
+import 'package:top_places/widgets/conversation_list.dart';
 
 /// The Asistent tab: a chat with the assistant. Its rules answer at once;
 /// what they don't understand goes to Gemini, when the app has a key.
 /// Being a tab, it keeps the conversation while you look at the map.
+///
+/// A signed-in account keeps its conversations: each is saved as it goes,
+/// and the history (a drawer on phones, a panel on wide windows) opens,
+/// renames and deletes them.
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
 
@@ -36,10 +46,21 @@ class _ChatScreenState extends State<ChatScreen> {
   /// True while Gemini writes an answer.
   bool _waiting = false;
 
+  /// The conversation on screen, and its saving.
+  var _session = _Session();
+
+  /// True while a conversation from the history loads.
+  bool _opening = false;
+
+  /// The account whose conversation is on screen. When another one signs
+  /// in, or this one signs out, the chat starts afresh.
+  String? _accountId;
+
   @override
   void initState() {
     super.initState();
     _gemini = context.read<GeminiService?>();
+    _accountId = context.read<ConversationsViewModel>().accountId;
   }
 
   @override
@@ -48,11 +69,85 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
+  /// A new, empty conversation. The rules forget a question too.
+  void _clear() {
+    _session = _Session();
+    _messages.clear();
+    _waiting = false;
+    _opening = false;
+    _bot = null;
+  }
+
+  void _newChat() => setState(_clear);
+
+  /// Opens a conversation from the history.
+  Future<void> _open(Conversation conversation) async {
+    if (conversation.id == _session.conversation?.id) return;
+    final chats = context.read<ConversationsViewModel>();
+    final repository = context.read<PlacesRepository>();
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
+    final session = _Session(conversation);
+    setState(() {
+      _clear();
+      _session = session;
+      _opening = true;
+    });
+    try {
+      final messages = await chats.messagesOf(
+        conversation,
+        placeById: repository.placeById,
+      );
+      // Another conversation was chosen meanwhile.
+      if (!mounted || session != _session) return;
+      setState(() {
+        _messages.addAll(messages);
+        _opening = false;
+      });
+    } on ChatHistoryException {
+      if (!mounted || session != _session) return;
+      messenger.showSnackBar(SnackBar(content: Text(l10n.chatNotOpened)));
+      setState(_clear);
+    }
+  }
+
+  /// Leaves a deleted conversation, if it is on screen.
+  void _deleted(Conversation conversation) {
+    if (conversation.id == _session.conversation?.id) setState(_clear);
+  }
+
+  /// Saves [messages] in the session's conversation, starting it with the
+  /// first one. Each save waits for the one before, so that a conversation
+  /// is started only once and its messages stay in order. Only for a
+  /// signed-in account.
+  void _save(_Session session, List<ChatMessage> messages) {
+    final chats = context.read<ConversationsViewModel>();
+    if (!chats.isAvailable) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
+    session.saved = session.saved.then((_) async {
+      try {
+        final conversation = session.conversation ??= await chats.start(
+          messages.first.text,
+        );
+        await chats.add(conversation, messages);
+      } on ChatHistoryException {
+        messenger.showSnackBar(SnackBar(content: Text(l10n.chatNotSaved)));
+      }
+    });
+  }
+
   Future<void> _send(String text) async {
     final message = text.trim();
-    if (message.isEmpty || _waiting) return;
+    if (message.isEmpty || _waiting || _opening) return;
     final bot = _bot!;
     final l10n = context.l10n;
+    final session = _session;
+    // Gemini reads the last messages too, so that a question can follow
+    // the ones before it.
+    final history = _messages.sublist(
+      max(0, _messages.length - _historyForGemini),
+    );
     // The rules speak Romanian and English. With a key, a message in
     // another language goes to Gemini, which answers in it. Told in
     // English: from Romanian instructions, Gemini answered Italian, which
@@ -61,24 +156,32 @@ class _ChatScreenState extends State<ChatScreen> {
         _gemini != null && !BotEngine.speaksLanguageOf(message);
     final reply = otherLanguage ? bot.notUnderstood : bot.reply(message);
     final gemini = reply == bot.notUnderstood ? _gemini : null;
+    final question = ChatMessage.user(message);
     setState(() {
-      _messages.add(ChatMessage.user(message));
+      _messages.add(question);
       // The rules answer at once; the old app waited 500 ms to look busy.
       if (gemini == null) _messages.add(reply);
       _waiting = gemini != null;
     });
     _input.clear();
-    if (gemini == null) return;
+    if (gemini == null) {
+      _save(session, [question, reply]);
+      return;
+    }
 
     final answer = await _askGemini(
       gemini,
       message,
       l10n,
+      history: history,
       instructions: _instructions(
         otherLanguage ? lookupAppLocalizations(const Locale('en')) : l10n,
       ),
     );
     if (!mounted) return;
+    // Saved in its own conversation, even if another is on screen now.
+    _save(session, [question, answer]);
+    if (session != _session) return;
     setState(() {
       _messages.add(answer);
       _waiting = false;
@@ -140,10 +243,15 @@ class _ChatScreenState extends State<ChatScreen> {
     GeminiService gemini,
     String message,
     AppLocalizations l10n, {
+    required List<ChatMessage> history,
     required String instructions,
   }) async {
     try {
-      final text = await gemini.generate(message, instructions: instructions);
+      final text = await gemini.generate(
+        message,
+        instructions: instructions,
+        history: history,
+      );
       return ChatMessage.ai(text, action: _placeNamedIn(text));
     } on GeminiException catch (error) {
       return ChatMessage.bot(
@@ -171,7 +279,13 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final repository = context.watch<PlacesRepository>();
+    final chats = context.watch<ConversationsViewModel>();
     final l10n = context.l10n;
+    if (chats.accountId != _accountId) {
+      // Without setState: this build shows the empty chat.
+      _accountId = chats.accountId;
+      _clear();
+    }
     final bot = _bot;
     if (bot == null ||
         !identical(repository.places, bot.places) ||
@@ -192,83 +306,152 @@ class _ChatScreenState extends State<ChatScreen> {
       l10n.chatSuggestion4,
     ];
 
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.tabAssistant)),
-      body: Center(
-        // On wide windows the conversation stays readable instead of
-        // stretching.
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: ListView.builder(
-                  // Built from the bottom up, so the newest message is
-                  // always in view without scrolling.
-                  reverse: true,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _messages.length + 1,
-                  itemBuilder: (context, index) => _Bubble(
-                    // The welcome first, at the top.
-                    message: index == _messages.length
-                        ? welcome
-                        : _messages[_messages.length - 1 - index],
-                    onShowOnMap: _showOnMap,
-                  ),
-                ),
-              ),
-              if (_messages.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final suggestion in suggestions)
-                        ActionChip(
-                          label: Text(suggestion),
-                          onPressed: () => _send(suggestion),
-                        ),
-                    ],
-                  ),
-                ),
-              if (_waiting)
-                LinearProgressIndicator(semanticsLabel: l10n.chatGeminiWriting),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _input,
-                        decoration: InputDecoration(
-                          hintText: l10n.chatHint,
-                          border: const OutlineInputBorder(),
-                        ),
-                        // Enter sends, on a keyboard or on a phone.
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: _send,
-                        // Keeps the focus (and the phone keyboard) for the
-                        // next message.
-                        onEditingComplete: () {},
+    final current = _session.conversation;
+    // The list has the title as renamed.
+    final title = current == null
+        ? l10n.tabAssistant
+        : chats.conversations
+                  .where((conversation) => conversation.id == current.id)
+                  .firstOrNull
+                  ?.title ??
+              current.title;
+    final history = ConversationList(
+      currentId: current?.id,
+      onNew: _newChat,
+      onOpen: _open,
+      onDeleted: _deleted,
+    );
+
+    final chat = Center(
+      // On wide windows the conversation stays readable instead of
+      // stretching.
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: _opening
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView.builder(
+                      // Built from the bottom up, so the newest message is
+                      // always in view without scrolling.
+                      reverse: true,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _messages.length + 1,
+                      itemBuilder: (context, index) => _Bubble(
+                        // The welcome first, at the top.
+                        message: index == _messages.length
+                            ? welcome
+                            : _messages[_messages.length - 1 - index],
+                        onShowOnMap: _showOnMap,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    IconButton.filled(
-                      tooltip: l10n.chatSend,
-                      onPressed: _waiting ? null : () => _send(_input.text),
-                      icon: const Icon(Icons.send),
-                    ),
+            ),
+            if (_messages.isEmpty && !_opening)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final suggestion in suggestions)
+                      ActionChip(
+                        label: Text(suggestion),
+                        onPressed: () => _send(suggestion),
+                      ),
                   ],
                 ),
               ),
-            ],
-          ),
+            if (_waiting)
+              LinearProgressIndicator(semanticsLabel: l10n.chatGeminiWriting),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _input,
+                      decoration: InputDecoration(
+                        hintText: l10n.chatHint,
+                        border: const OutlineInputBorder(),
+                      ),
+                      // Enter sends, on a keyboard or on a phone.
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: _send,
+                      // Keeps the focus (and the phone keyboard) for the
+                      // next message.
+                      onEditingComplete: () {},
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    tooltip: l10n.chatSend,
+                    onPressed: _waiting || _opening
+                        ? null
+                        : () => _send(_input.text),
+                    icon: const Icon(Icons.send),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // The same width at which Explore shows the list next to the map.
+        final wide = constraints.maxWidth >= 840;
+        return Scaffold(
+          appBar: AppBar(
+            leading: wide
+                ? null
+                : Builder(
+                    // Under the Scaffold, so that it finds its drawer.
+                    builder: (context) => IconButton(
+                      tooltip: l10n.chatHistory,
+                      onPressed: Scaffold.of(context).openDrawer,
+                      icon: const Icon(Icons.menu),
+                    ),
+                  ),
+            title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+            actions: [
+              IconButton(
+                tooltip: l10n.chatNew,
+                onPressed: _newChat,
+                icon: const Icon(Icons.add_comment_outlined),
+              ),
+            ],
+          ),
+          drawer: wide ? null : Drawer(child: SafeArea(child: history)),
+          body: wide
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(width: 300, child: history),
+                    const VerticalDivider(width: 1),
+                    Expanded(child: chat),
+                  ],
+                )
+              : chat,
+        );
+      },
+    );
   }
+}
+
+/// How many earlier messages Gemini reads with a question.
+const _historyForGemini = 10;
+
+/// One conversation on screen. [conversation] is null until the first
+/// message is saved; [saved] completes when the last save is done.
+class _Session {
+  _Session([this.conversation]);
+
+  Conversation? conversation;
+  Future<void> saved = Future.value();
 }
 
 /// One message: the user's on the right, the assistant's on the left, with

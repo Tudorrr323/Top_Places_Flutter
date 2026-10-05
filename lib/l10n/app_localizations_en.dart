@@ -1112,4 +1112,56 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get allCities => 'All cities';
+
+  @override
+  String get chatHistory => 'Conversations';
+
+  @override
+  String get chatNew => 'New chat';
+
+  @override
+  String get chatHistorySignIn =>
+      'Sign in to keep your conversations with the assistant, on any device.';
+
+  @override
+  String get chatHistoryEmpty =>
+      'No conversations yet. What you write in the chat is kept here.';
+
+  @override
+  String get chatHistoryNotLoaded => 'The conversations could not be loaded.';
+
+  @override
+  String get tryAgain => 'Try again';
+
+  @override
+  String get chatNotSaved =>
+      'The messages could not be saved in the history. Check the internet.';
+
+  @override
+  String get chatNotOpened =>
+      'The conversation could not be opened. Check the internet.';
+
+  @override
+  String get chatNotChanged =>
+      'The conversation could not be changed. Check the internet.';
+
+  @override
+  String get chatConversationActions => 'Conversation options';
+
+  @override
+  String get chatRename => 'Rename';
+
+  @override
+  String get chatRenameTitle => 'Rename the conversation';
+
+  @override
+  String get chatTitleLabel => 'Title';
+
+  @override
+  String get chatDeleteTitle => 'Delete the conversation?';
+
+  @override
+  String chatDeleteMessage(String title) {
+    return '“$title” goes away, with all its messages.';
+  }
 }
