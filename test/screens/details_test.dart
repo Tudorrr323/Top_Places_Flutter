@@ -208,4 +208,10 @@ void main() {
     expect(find.text('EN'), findsNothing);
     expect(find.textContaining('engleză'), findsNothing);
   });
+
+  testWidgets('without Supabase there are no ratings to give', (tester) async {
+    await openLink(tester, '/locations/cafe-new-world');
+
+    expect(find.text('Note'), findsNothing);
+  });
 }

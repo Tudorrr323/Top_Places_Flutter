@@ -11,8 +11,8 @@ class PlaceException implements Exception {
   String toString() => message;
 }
 
-/// What an operator fills in for a place. The rest (owner, status, rating)
-/// is decided by the database and by the admins.
+/// What an operator fills in for a place. The rest (owner, status) is
+/// decided by the database and by the admins, and the rating by the users.
 class PlaceDraft {
   const PlaceDraft({
     required this.name,
@@ -45,7 +45,7 @@ class PlaceDraft {
 
 /// What an admin decides about a place. The database checks the rest: a
 /// reason is required to reject or suspend. Ratings are not the admin's:
-/// they will come from the people who visit the place.
+/// they come from the people who rate the place.
 class PlaceReview {
   /// Approves the place, or reactivates a suspended one.
   PlaceReview.approve() : row = {'status': 'approved'};
@@ -79,6 +79,13 @@ abstract class PlaceService {
 
   /// An admin's decision about a place.
   Future<Place> review(String id, PlaceReview review);
+
+  /// The stars the signed-in account gave the place, or null if none.
+  Future<int?> myRating(String placeId);
+
+  /// Gives the place 1 to 5 stars, or changes the ones given before. The
+  /// database then updates the place's average.
+  Future<void> ratePlace(String placeId, int stars);
 }
 
 class SupabasePlaceService implements PlaceService {
@@ -140,6 +147,37 @@ class SupabasePlaceService implements PlaceService {
   @override
   Future<Place> review(String id, PlaceReview review) =>
       _update(id, review.row);
+
+  @override
+  Future<int?> myRating(String placeId) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return null;
+    final row = await _guard(
+      () => _client
+          .from('ratings')
+          .select('stars')
+          .eq('place_id', placeId)
+          .eq('user_id', user.id)
+          .maybeSingle(),
+    );
+    return row?['stars'] as int?;
+  }
+
+  @override
+  Future<void> ratePlace(String placeId, int stars) async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw const PlaceException('Intră în cont ca să dai o notă.');
+    }
+    // One row per account and place: rating again changes the stars.
+    await _guard(
+      () => _client.from('ratings').upsert({
+        'place_id': placeId,
+        'user_id': user.id,
+        'stars': stars,
+      }, onConflict: 'place_id,user_id'),
+    );
+  }
 
   Future<Place> _update(String id, Map<String, Object> values) async {
     final row = await _guard(

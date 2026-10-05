@@ -4,8 +4,11 @@ import 'package:provider/provider.dart';
 import 'package:top_places/models/place.dart';
 import 'package:top_places/screens/not_found_screen.dart';
 import 'package:top_places/services/gemini_service.dart';
+import 'package:top_places/services/place_service.dart';
 import 'package:top_places/services/places_repository.dart';
 import 'package:top_places/utils/links.dart';
+import 'package:top_places/view_models/account_view_model.dart';
+import 'package:top_places/widgets/rating_section.dart';
 import 'package:top_places/widgets/place_photo.dart';
 
 /// WhatsApp's green. Black text on it is easy to read (10:1); the white text
@@ -30,8 +33,8 @@ const _vibeExamplesEn = [
 ];
 
 /// One place: a big photo that shrinks into the app bar when scrolling, then
-/// the name, address, rating, description and the WhatsApp and directions
-/// buttons.
+/// the name, address, rating, description, the WhatsApp and directions
+/// buttons and, with accounts, the ratings.
 class PlaceDetailsScreen extends StatelessWidget {
   const PlaceDetailsScreen({super.key, required this.placeId});
 
@@ -121,6 +124,10 @@ class _PlaceInfoState extends State<_PlaceInfo> {
   Widget build(BuildContext context) {
     final place = widget.place;
     final theme = Theme.of(context);
+    final account = context.watch<AccountViewModel>();
+    // Ratings need the accounts and the places in Supabase.
+    final hasRatings =
+        account.isAvailable && context.watch<PlaceService?>() != null;
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -197,6 +204,16 @@ class _PlaceInfoState extends State<_PlaceInfo> {
               ),
             ],
           ),
+          if (hasRatings) ...[
+            const Divider(height: 32),
+            // A new state for each account, so the stars shown are always
+            // the ones of whoever is signed in.
+            RatingSection(
+              key: ValueKey(account.profile?.id),
+              place: place,
+              me: account.profile,
+            ),
+          ],
         ],
       ),
     );

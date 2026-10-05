@@ -12,6 +12,9 @@ class FakePlaceService implements PlaceService {
 
   /// What an admin sees: every place, in every status.
   final all = <Place>[];
+
+  /// The stars the signed-in account gave, by place.
+  final myRatings = <String, int>{};
   bool offline;
   int _nextId = 1;
 
@@ -69,6 +72,7 @@ class FakePlaceService implements PlaceService {
       description: old.description,
       descriptionRo: old.descriptionRo,
       rating: row['rating'] as double? ?? old.rating,
+      ratingCount: old.ratingCount,
       status: status == null ? old.status : PlaceStatus.values.byName(status),
       statusReason: status == null
           ? old.statusReason
@@ -77,6 +81,37 @@ class FakePlaceService implements PlaceService {
     );
     all[index] = place;
     return place;
+  }
+
+  @override
+  Future<int?> myRating(String placeId) async {
+    _checkOnline();
+    return myRatings[placeId];
+  }
+
+  /// Saves the stars, and gives the public place their average as if they
+  /// were its only rating.
+  @override
+  Future<void> ratePlace(String placeId, int stars) async {
+    _checkOnline();
+    myRatings[placeId] = stars;
+    final index = _public.indexWhere((place) => place.id == placeId);
+    if (index < 0) return;
+    final old = _public[index];
+    _public[index] = Place(
+      id: old.id,
+      name: old.name,
+      address: old.address,
+      city: old.city,
+      lat: old.lat,
+      lng: old.lng,
+      imageUrl: old.imageUrl,
+      description: old.description,
+      descriptionRo: old.descriptionRo,
+      rating: stars.toDouble(),
+      ratingCount: 1,
+      ownerId: old.ownerId,
+    );
   }
 
   void _checkOnline() {

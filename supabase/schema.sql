@@ -45,7 +45,8 @@ create table public.places (
     check (char_length(btrim(description)) between 10 and 300),
   -- The Romanian translation, for the places whose description is English.
   description_ro text check (char_length(description_ro) <= 300),
-  -- Set by an admin; null until then, shown as "Nou" in the app.
+  -- Null for a new place, shown as "Nou" in the app. From 004_ratings.sql
+  -- on, the average of the users' ratings.
   rating numeric(2, 1) check (rating between 1 and 5),
   owner_id uuid references public.profiles (id) on delete set null,
   status text not null default 'pending'

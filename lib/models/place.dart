@@ -15,6 +15,7 @@ class Place {
     required this.description,
     this.descriptionRo,
     required this.rating,
+    this.ratingCount = 0,
     this.status = PlaceStatus.approved,
     this.statusReason,
     this.ownerId,
@@ -53,8 +54,9 @@ class Place {
       imageUrl: row['image_url'] as String,
       description: row['description'] as String,
       descriptionRo: row['description_ro'] as String?,
-      // Only a place that waits for review has no rating yet.
+      // A new place has no rating until people rate it.
       rating: (row['rating'] as num?)?.toDouble() ?? 0,
+      ratingCount: (row['rating_count'] as num?)?.toInt() ?? 0,
       // The public view has no status: everything in it is approved.
       status: status == null
           ? PlaceStatus.approved
@@ -80,6 +82,10 @@ class Place {
 
   /// From 1 to 5; 0 for a new place that nobody has rated yet.
   final double rating;
+
+  /// How many ratings [rating] is the average of. 0 for a place nobody has
+  /// rated in the app yet: the original 20 then show the old app's rating.
+  final int ratingCount;
 
   final PlaceStatus status;
 
