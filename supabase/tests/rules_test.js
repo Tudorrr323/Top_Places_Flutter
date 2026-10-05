@@ -330,11 +330,11 @@ async function main() {
     'select status from public.ratings where place_id = $1 and user_id = $2', [placeId, userId])).rows[0].status;
   await rate(boss, 'burger-shack', 4, 'Burgeri buni.');
   check((await statusOf(boss, 'burger-shack')) === 'approved' && (await reviewsOf(null, 'burger-shack')).length === 1,
-    'on a place without an operator, it is public at once: nobody else would accept it');
+    'on a place without an operator, it is public at once');
   await rate(boss, 'burger-shack', 5, 'Burgeri foarte buni.');
   check((await statusOf(boss, 'burger-shack')) === 'approved', 'and stays public when changed');
   await rate(boss, place.id, 5);
-  check((await statusOf(boss, place.id)) === 'pending', "on an operator's place, it waits for the operator");
+  check((await statusOf(boss, place.id)) === 'approved', "on an operator's place too: admins wait for nobody");
   await rate(dan, 'burger-shack', 2);
   check((await statusOf(dan, 'burger-shack')) === 'pending', "a user's review still waits");
 
@@ -346,12 +346,21 @@ async function main() {
   await old.query("select set_config('request.jwt.claims', $1, false)", [JSON.stringify({ sub: oldAdmin, role: 'authenticated' })]);
   await old.exec('set role authenticated');
   await old.query("insert into public.ratings (place_id, stars) values ('burger-shack', 4)");
+  // A place with an operator, too.
+  await old.exec('reset role');
+  const oldOperator = (await old.query(
+    "insert into auth.users (email, raw_user_meta_data) values ('op@test.ro', '{}') returning id")).rows[0].id;
+  await old.query("update public.profiles set role = 'operator' where id = $1", [oldOperator]);
+  await old.query("update public.places set owner_id = $1 where id = 'cafe-new-world'", [oldOperator]);
+  await old.exec('set role authenticated');
+  await old.query("insert into public.ratings (place_id, stars) values ('cafe-new-world', 5)");
   await old.exec('reset role');
   // Then step 6, run in the SQL Editor: no one signed in.
   await old.query("select set_config('request.jwt.claims', '', false)");
   await old.exec(fs.readFileSync(path.join(__dirname, '..', steps[steps.length - 1]), 'utf8'));
-  row = (await old.query("select r.status, p.rating_count from public.ratings r join public.places p on p.id = r.place_id")).rows[0];
-  check(row.status === 'approved' && row.rating_count === 1, "an admin's review that was waiting becomes public, and counts");
+  row = (await old.query("select r.status, p.rating_count from public.ratings r join public.places p on p.id = r.place_id")).rows;
+  check(row.length === 2 && row.every((review) => review.status === 'approved' && review.rating_count === 1),
+    "an admin's reviews that were waiting become public, and count");
 
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);

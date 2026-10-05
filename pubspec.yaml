@@ -19,6 +19,7 @@ dependencies:
   go_router: ^17.5.0
   http: ^1.6.0
   supabase_flutter: ^2.18.0
+  geolocator: ^14.1.1
 
 dev_dependencies:
   flutter_test:

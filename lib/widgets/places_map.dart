@@ -1,8 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
 import 'package:top_places/models/place.dart';
+import 'package:top_places/services/location_service.dart';
 import 'package:top_places/utils/clusters.dart';
 import 'package:top_places/utils/links.dart';
 import 'package:top_places/widgets/place_marker.dart';
@@ -21,7 +25,7 @@ const _separateZoom = 17.0;
 /// OpenStreetMap with a marker for every place. Places too close to tell
 /// apart share one bubble, which splits when the map zooms in. Tapping a
 /// marker opens the place in a sheet: small at first, the whole page when
-/// dragged up.
+/// dragged up. The GPS button shows where the device is.
 class PlacesMap extends StatefulWidget {
   const PlacesMap({super.key, required this.places});
 
@@ -34,6 +38,12 @@ class PlacesMap extends StatefulWidget {
 class _PlacesMapState extends State<PlacesMap> {
   final _mapController = MapController();
   Place? _selected;
+
+  /// Where the device is, once the GPS button found it.
+  LatLng? _myLocation;
+
+  /// True while the GPS button looks for the device.
+  bool _locating = false;
 
   /// Moves and zooms the map so that every place in the list is visible.
   CameraFit get _fitAllPlaces => CameraFit.coordinates(
@@ -74,6 +84,33 @@ class _PlacesMapState extends State<PlacesMap> {
     );
   }
 
+  /// The GPS button: asks for the permission the first time, then moves
+  /// the map to where the device is.
+  Future<void> _goToMyLocation() async {
+    final location = context.read<LocationService>();
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _locating = true);
+    try {
+      final here = await location.currentLocation();
+      if (!mounted) return;
+      setState(() => _myLocation = here);
+      // Close enough to see the streets, without zooming out.
+      _mapController.move(here, math.max(_mapController.camera.zoom, 15));
+    } on LocationException catch (error) {
+      final openSettings = error.openSettings;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(error.message),
+          action: openSettings == null
+              ? null
+              : SnackBarAction(label: 'Setări', onPressed: openSettings),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _locating = false);
+    }
+  }
+
   /// Opens the sheet of [place]; its marker stays marked until it closes.
   Future<void> _open(Place place) async {
     setState(() => _selected = place);
@@ -86,38 +123,93 @@ class _PlacesMapState extends State<PlacesMap> {
     // No marked marker when its place has been filtered out.
     final selected = widget.places.contains(_selected) ? _selected : null;
 
-    return FlutterMap(
-      mapController: _mapController,
-      options: MapOptions(
-        initialCenter: const LatLng(45.9, 24.9), // the middle of Romania
-        initialZoom: 6,
-        initialCameraFit: widget.places.isEmpty ? null : _fitAllPlaces,
-        minZoom: 4,
-        maxZoom: 19,
-        interactionOptions: InteractionOptions(
-          flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-          // Without this, Ctrl + drag still rotates the map on desktop.
-          cursorKeyboardRotationOptions:
-              CursorKeyboardRotationOptions.disabled(),
-          // Keep the keyboard focus on the search bar when the map opens.
-          keyboardOptions: const KeyboardOptions(autofocus: false),
+    final myLocation = _myLocation;
+
+    return Stack(
+      children: [
+        FlutterMap(
+          mapController: _mapController,
+          options: MapOptions(
+            initialCenter: const LatLng(45.9, 24.9), // the middle of Romania
+            initialZoom: 6,
+            initialCameraFit: widget.places.isEmpty ? null : _fitAllPlaces,
+            minZoom: 4,
+            maxZoom: 19,
+            interactionOptions: InteractionOptions(
+              flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+              // Without this, Ctrl + drag still rotates the map on desktop.
+              cursorKeyboardRotationOptions:
+                  CursorKeyboardRotationOptions.disabled(),
+              // Keep the keyboard focus on the search bar when the map opens.
+              keyboardOptions: const KeyboardOptions(autofocus: false),
+            ),
+          ),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              // The OpenStreetMap tile policy asks apps to identify themselves.
+              userAgentPackageName: 'com.tudorrrr.top_places',
+            ),
+            // Under the places, so that they stay easy to tap.
+            if (myLocation != null)
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: myLocation,
+                    width: 24,
+                    height: 24,
+                    child: const _MyLocationDot(),
+                  ),
+                ],
+              ),
+            _Markers(
+              places: widget.places,
+              selected: selected,
+              onOpen: _open,
+              onZoomTo: _zoomTo,
+            ),
+            // The policy also asks for this credit, always visible on the map.
+            const _OsmCredit(),
+          ],
+        ),
+        // Bottom left, away from the credit on the right.
+        Positioned(
+          left: 16,
+          bottom: 16,
+          child: FloatingActionButton.small(
+            // Not shared with another screen.
+            heroTag: null,
+            tooltip: 'Arată-mi locația',
+            onPressed: _locating ? null : _goToMyLocation,
+            child: _locating
+                ? const SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.my_location),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The device's location: a blue dot with a white ring.
+class _MyLocationDot extends StatelessWidget {
+  const _MyLocationDot();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Locația ta',
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.primary,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 3),
+          boxShadow: const [BoxShadow(blurRadius: 4, color: Colors.black26)],
         ),
       ),
-      children: [
-        TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          // The OpenStreetMap tile policy asks apps to identify themselves.
-          userAgentPackageName: 'com.tudorrrr.top_places',
-        ),
-        _Markers(
-          places: widget.places,
-          selected: selected,
-          onOpen: _open,
-          onZoomTo: _zoomTo,
-        ),
-        // The policy also asks for this credit, always visible on the map.
-        const _OsmCredit(),
-      ],
     );
   }
 }

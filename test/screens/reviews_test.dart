@@ -144,8 +144,7 @@ void main() {
     expect(find.text('Nicio recenzie încă.'), findsOne);
   });
 
-  testWidgets("an admin's review of a place without an operator is public "
-      'at once', (tester) async {
+  testWidgets("an admin's review is public at once", (tester) async {
     const admin = Profile(
       id: 'maria',
       email: 'maria@test.ro',
@@ -153,18 +152,8 @@ void main() {
       lastName: 'Admin',
       role: Role.admin,
     );
-    const original = Place(
-      id: 'cafe-new-world',
-      name: 'Café New World',
-      address: 'Str. Lăpușneanu, Nr. 12, Iași',
-      city: 'Iași',
-      lat: 47.16,
-      lng: 27.58,
-      imageUrl: '',
-      description: 'Design modern, perfect pentru un brunch relaxat.',
-      rating: 4.7,
-    );
-    await openReviews(tester, place: original, me: admin);
+    // Even on an operator's place: admins wait for nobody.
+    await openReviews(tester, me: admin);
     expect(
       find.textContaining('Ca administrator, recenzia ta apare imediat.'),
       findsOne,

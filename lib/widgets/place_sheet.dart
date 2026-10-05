@@ -140,7 +140,7 @@ class _PlaceSheetState extends State<_PlaceSheet> {
 
 /// The top of the sheet, which is all of the small one: the photo, the
 /// name, the address, the rating and the start of the description, with the
-/// buttons that close and resize the sheet.
+/// button that resizes the sheet.
 class _Summary extends StatelessWidget {
   const _Summary({
     required this.place,
@@ -215,22 +215,15 @@ class _Summary extends StatelessWidget {
                   ],
                 ),
               ),
-              Column(
-                children: [
-                  IconButton(
-                    tooltip: 'Închide',
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                  ValueListenableBuilder(
-                    valueListenable: full,
-                    builder: (context, full, child) => IconButton(
-                      tooltip: full ? 'Micșorează' : 'Toate detaliile',
-                      icon: Icon(full ? Icons.expand_more : Icons.expand_less),
-                      onPressed: onResize,
-                    ),
-                  ),
-                ],
+              // No close button: a swipe down, the back button or a tap on
+              // the map closes the sheet.
+              ValueListenableBuilder(
+                valueListenable: full,
+                builder: (context, full, child) => IconButton(
+                  tooltip: full ? 'Micșorează' : 'Toate detaliile',
+                  icon: Icon(full ? Icons.expand_more : Icons.expand_less),
+                  onPressed: onResize,
+                ),
               ),
             ],
           ),

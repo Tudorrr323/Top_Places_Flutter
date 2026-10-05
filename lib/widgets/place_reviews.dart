@@ -121,17 +121,17 @@ class _MyReviewState extends State<_MyReview> {
     return null;
   }
 
-  /// When a review sent here becomes public. The database decides the same
-  /// way: an admin's review of a place without an operator has nobody else
-  /// to accept it.
-  String get _whenPublic {
-    if (widget.place.ownerId != null) {
-      return 'Apare după ce o acceptă operatorul localului.';
-    }
-    return widget.me?.role == Role.admin
-        ? 'Ca administrator, recenzia ta apare imediat.'
-        : 'Apare după ce o acceptă un administrator.';
-  }
+  /// When a waiting review becomes public: once the place's operator
+  /// accepts it, or an admin for a place without one.
+  String get _whenAccepted => widget.place.ownerId == null
+      ? 'Apare după ce o acceptă un administrator.'
+      : 'Apare după ce o acceptă operatorul localului.';
+
+  /// When a review sent from this form becomes public. The database decides
+  /// the same way: an admin's review is public at once.
+  String get _whenPublic => widget.me?.role == Role.admin
+      ? 'Ca administrator, recenzia ta apare imediat.'
+      : _whenAccepted;
 
   /// True when the form differs from the saved review: there is something
   /// to send.
@@ -266,7 +266,7 @@ class _MyReviewState extends State<_MyReview> {
       RatingStatus.pending => (
         Icons.schedule,
         'În așteptare',
-        '$_whenPublic Până atunci o vezi doar tu.',
+        '$_whenAccepted Până atunci o vezi doar tu.',
       ),
       RatingStatus.approved => (
         Icons.check_circle_outline,

@@ -108,7 +108,7 @@ class FakePlaceService implements PlaceService {
   }
 
   /// Like the database: a new or changed review waits for the operator,
-  /// except an admin's review of a place without one.
+  /// except an admin's, which is public at once.
   @override
   Future<Rating> saveRating(
     String placeId, {
@@ -117,13 +117,10 @@ class FakePlaceService implements PlaceService {
   }) async {
     _checkOnline();
     final message = comment.trim();
-    final place = _public.where((place) => place.id == placeId).firstOrNull;
     final rating = Rating(
       stars: stars,
       comment: message.isEmpty ? null : message,
-      status: meIsAdmin && place?.ownerId == null
-          ? RatingStatus.approved
-          : RatingStatus.pending,
+      status: meIsAdmin ? RatingStatus.approved : RatingStatus.pending,
       author: 'Eu',
       placeId: placeId,
       userId: me!,

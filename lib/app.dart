@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:top_places/router.dart';
 import 'package:top_places/services/account_service.dart';
 import 'package:top_places/services/gemini_service.dart';
+import 'package:top_places/services/location_service.dart';
 import 'package:top_places/services/place_service.dart';
 import 'package:top_places/services/places_repository.dart';
 import 'package:top_places/view_models/account_view_model.dart';
@@ -19,6 +20,7 @@ class TopPlacesApp extends StatefulWidget {
     required this.repository,
     this.gemini,
     this.accounts,
+    this.location = const DeviceLocationService(),
   });
 
   final PlacesRepository repository;
@@ -29,6 +31,9 @@ class TopPlacesApp extends StatefulWidget {
 
   /// Null without the Supabase values: the app then has no accounts.
   final AccountService? accounts;
+
+  /// Where the device is, for the GPS button on the map.
+  final LocationService location;
 
   @override
   State<TopPlacesApp> createState() => _TopPlacesAppState();
@@ -55,6 +60,7 @@ class _TopPlacesAppState extends State<TopPlacesApp> {
         Provider<PlaceService?>.value(value: widget.repository.remote),
         Provider<AccountService?>.value(value: widget.accounts),
         Provider<GeminiService?>.value(value: widget.gemini),
+        Provider<LocationService>.value(value: widget.location),
         // Gets the new places whenever the repository changes; the search
         // and the filters stay.
         ChangeNotifierProxyProvider<PlacesRepository, ExploreViewModel>(

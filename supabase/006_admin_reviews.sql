@@ -1,22 +1,16 @@
 -- Top Places, step 6: the admins' own reviews. Run it once in the SQL
 -- Editor, after 005_reviews.sql.
 --
--- The admins accept the reviews of a place without an operator, and nobody
--- decides about their own review. So an admin's review of such a place
--- would wait forever with a single admin. It is accepted at once instead:
--- the admins are trusted, and nobody else would decide. An admin's review
--- of an operator's place still waits for that operator.
+-- The admins are trusted: their reviews are public at once, on every place,
+-- without waiting for anyone. Waiting would not even end on a place without
+-- an operator, whose reviews the admins accept, since nobody decides about
+-- their own review.
 
 -- 1. Where a new or changed review starts.
-create function public.new_rating_status(place text) returns text
+create function public.new_rating_status() returns text
 language sql stable set search_path = ''
 as $$
-  select case
-    when public.is_admin() and exists (
-      select 1 from public.places where id = place and owner_id is null
-    ) then 'approved'
-    else 'pending'
-  end;
+  select case when public.is_admin() then 'approved' else 'pending' end;
 $$;
 
 -- 2. The same trigger as in 005, starting reviews with that status.
@@ -27,7 +21,7 @@ begin
   new.comment := nullif(btrim(new.comment), '');
 
   if tg_op = 'INSERT' then
-    new.status := public.new_rating_status(new.place_id);
+    new.status := public.new_rating_status();
     new.status_reason := null;
     new.created_at := now();
     new.updated_at := now();
@@ -42,7 +36,7 @@ begin
   if new.user_id = (select auth.uid()) then
     if new.stars is distinct from old.stars
        or new.comment is distinct from old.comment then
-      new.status := public.new_rating_status(new.place_id);
+      new.status := public.new_rating_status();
       new.status_reason := null;
       new.updated_at := now();
     else
@@ -65,15 +59,11 @@ begin
 end;
 $$;
 
--- 3. The admins' reviews that already wait for this reason are accepted now.
+-- 3. The admins' reviews that already wait are accepted now.
 update public.ratings as r
 set status = 'approved'
 where r.status = 'pending'
   and exists (
     select 1 from public.profiles as u
     where u.id = r.user_id and u.role = 'admin'
-  )
-  and exists (
-    select 1 from public.places as p
-    where p.id = r.place_id and p.owner_id is null
   );

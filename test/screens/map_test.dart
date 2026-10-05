@@ -3,9 +3,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:top_places/app.dart';
+import 'package:top_places/services/location_service.dart';
 import 'package:top_places/services/places_repository.dart';
 import 'package:top_places/widgets/place_marker.dart';
+
+import '../fake_location_service.dart';
+
 import 'package:top_places/widgets/place_card.dart';
 
 void main() {
@@ -14,11 +19,20 @@ void main() {
     citiesJson: File('assets/data/romanian_cities.json').readAsStringSync(),
   );
 
-  Future<void> startApp(WidgetTester tester, Size size) async {
+  Future<void> startApp(
+    WidgetTester tester,
+    Size size, {
+    LocationService? location,
+  }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(TopPlacesApp(repository: repository));
+    await tester.pumpWidget(
+      TopPlacesApp(
+        repository: repository,
+        location: location ?? FakeLocationService(),
+      ),
+    );
     await tester.pumpAndSettle();
   }
 
@@ -92,7 +106,7 @@ void main() {
       expect(find.textContaining('conectată la Supabase'), findsOne);
     });
 
-    testWidgets('its buttons resize and close it', (tester) async {
+    testWidgets('its button resizes it', (tester) async {
       await openSheet(tester);
 
       await tester.tap(find.byTooltip('Toate detaliile'));
@@ -102,10 +116,6 @@ void main() {
       await tester.tap(find.byTooltip('Micșorează'));
       await tester.pumpAndSettle();
       expect(sheetHeight(tester), lessThan(300));
-
-      await tester.tap(find.byTooltip('Închide'));
-      await tester.pumpAndSettle();
-      expect(find.byType(DraggableScrollableSheet), findsNothing);
     });
 
     testWidgets('full, it shrinks when dragged down, then closes', (
@@ -129,6 +139,15 @@ void main() {
         const Duration(milliseconds: 300),
       );
       await tester.pumpAndSettle();
+      expect(find.byType(DraggableScrollableSheet), findsNothing);
+    });
+
+    testWidgets('a tap on the map closes it', (tester) async {
+      await openSheet(tester);
+
+      await tester.tapAt(const Offset(200, 200));
+      await tester.pumpAndSettle();
+
       expect(find.byType(DraggableScrollableSheet), findsNothing);
     });
 
@@ -191,5 +210,55 @@ void main() {
     for (final place in group) {
       expect(find.byTooltip(place.name), findsOne, reason: place.name);
     }
+  });
+
+  group('the GPS button', () {
+    testWidgets('moves the map to where the device is', (tester) async {
+      const bucharest = LatLng(44.4268, 26.1025);
+      await startApp(
+        tester,
+        const Size(400, 900),
+        location: FakeLocationService(location: bucharest),
+      );
+      await tester.tap(find.byTooltip('Arată harta'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Arată-mi locația'));
+      await tester.pumpAndSettle();
+
+      final camera = tester
+          .widget<FlutterMap>(find.byType(FlutterMap))
+          .mapController!
+          .camera;
+      expect(camera.center.latitude, closeTo(bucharest.latitude, 0.001));
+      expect(camera.center.longitude, closeTo(bucharest.longitude, 0.001));
+      expect(camera.zoom, greaterThanOrEqualTo(15));
+      expect(find.bySemanticsLabel('Locația ta'), findsOne);
+    });
+
+    testWidgets('says why when the location is refused', (tester) async {
+      var opened = false;
+      await startApp(
+        tester,
+        const Size(400, 900),
+        location: FakeLocationService(
+          error: LocationException(
+            'Ai refuzat localizarea pentru Top Places.',
+            openSettings: () async => opened = true,
+          ),
+        ),
+      );
+      await tester.tap(find.byTooltip('Arată harta'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Arată-mi locația'));
+      await tester.pumpAndSettle();
+      expect(find.text('Ai refuzat localizarea pentru Top Places.'), findsOne);
+
+      await tester.tap(find.text('Setări'));
+      await tester.pumpAndSettle();
+      expect(opened, isTrue);
+      expect(find.bySemanticsLabel('Locația ta'), findsNothing);
+    });
   });
 }
