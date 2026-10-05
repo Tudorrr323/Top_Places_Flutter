@@ -104,4 +104,79 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('in English, the vibe examples are in English too', (
+    tester,
+  ) async {
+    await openLink(tester, '/locations/cafe-new-world');
+    await tester.tap(find.text('EN'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Arată un exemplu de vibe'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('The atmosphere is electric'), findsOneWidget);
+  });
+
+  testWidgets('with a key, the vibe is asked for in the chosen language', (
+    tester,
+  ) async {
+    final asked = <String>[];
+    await openLink(
+      tester,
+      '/locations/cafe-new-world',
+      gemini: fakeGemini(
+        'A relaxed brunch spot with great cakes. 🍰',
+        onRequest: (request) => asked.add(request.body),
+      ),
+    );
+    await tester.tap(find.text('EN'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Generează un vibe cu AI'));
+    await tester.pumpAndSettle();
+
+    expect(asked.single, contains('Write only in English'));
+    expect(find.text('A relaxed brunch spot with great cakes. 🍰'), findsOne);
+  });
+
+  testWidgets('an example stays on screen and changes language', (
+    tester,
+  ) async {
+    await openLink(tester, '/locations/cafe-new-world');
+    await tester.tap(find.text('Arată un exemplu de vibe'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('EN'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('The atmosphere is electric'), findsOneWidget);
+  });
+
+  testWidgets('an AI vibe stays on screen and is translated', (tester) async {
+    final asked = <String>[];
+    await openLink(
+      tester,
+      '/locations/cafe-new-world',
+      gemini: fakeGeminiAnswers([
+        'Brunch lejer și prăjituri bune. 🍰',
+        'A relaxed brunch and great cakes. 🍰',
+      ], onRequest: (request) => asked.add(request.body)),
+    );
+    await tester.tap(find.text('Generează un vibe cu AI'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('EN'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('A relaxed brunch and great cakes. 🍰'), findsOneWidget);
+    expect(asked.last, contains('Translate the text below into English'));
+
+    // Back to Romanian: the first text again, without a new request.
+    await tester.tap(find.text('RO'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Brunch lejer și prăjituri bune. 🍰'), findsOneWidget);
+    expect(asked, hasLength(2));
+  });
 }

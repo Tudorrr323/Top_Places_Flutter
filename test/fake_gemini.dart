@@ -23,7 +23,29 @@ http.Response geminiAnswer(String text) => http.Response.bytes(
 );
 
 /// A GeminiService that never goes online: every question gets [text].
-GeminiService fakeGemini(String text) => GeminiService(
+/// [onRequest] sees each request, for the tests that check what was asked.
+GeminiService fakeGemini(
+  String text, {
+  void Function(http.Request request)? onRequest,
+}) => GeminiService(
   apiKey: 'test-key',
-  client: MockClient((request) async => geminiAnswer(text)),
+  client: MockClient((request) async {
+    onRequest?.call(request);
+    return geminiAnswer(text);
+  }),
 );
+
+/// Like [fakeGemini], with the next of [answers] for each request.
+GeminiService fakeGeminiAnswers(
+  List<String> answers, {
+  void Function(http.Request request)? onRequest,
+}) {
+  var next = 0;
+  return GeminiService(
+    apiKey: 'test-key',
+    client: MockClient((request) async {
+      onRequest?.call(request);
+      return geminiAnswer(answers[next++]);
+    }),
+  );
+}
