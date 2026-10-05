@@ -17,13 +17,13 @@ class PlaceMarker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final rating = place.rating.toStringAsFixed(1);
+    final rating = place.ratingText;
 
     return Tooltip(
       message: place.name,
       // What a screen reader says, instead of only "4.7".
       child: Semantics(
-        label: '${place.name}, $rating stele',
+        label: '${place.name}, ${place.ratingLabel}',
         button: true,
         selected: selected,
         onTap: onTap,

@@ -195,10 +195,14 @@ class BotEngine {
           'criteriilor tale: $list.',
         );
       }
+      // The best and the worst are chosen among the rated places; a new
+      // place has no rating to compare yet.
+      final rated = found.where((place) => place.isRated).toList();
+      final ranked = rated.isEmpty ? found : rated;
       // reduce() keeps the first of equal ratings, as the old sort did.
       final place = switch ((best, worst)) {
-        (true, _) => found.reduce((a, b) => b.rating > a.rating ? b : a),
-        (_, true) => found.reduce((a, b) => b.rating < a.rating ? b : a),
+        (true, _) => ranked.reduce((a, b) => b.rating > a.rating ? b : a),
+        (_, true) => ranked.reduce((a, b) => b.rating < a.rating ? b : a),
         _ => found.first,
       };
       return ChatMessage.bot(

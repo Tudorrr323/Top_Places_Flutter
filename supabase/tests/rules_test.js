@@ -22,6 +22,7 @@ async function main() {
   await db.exec(fs.readFileSync(path.join(__dirname, 'supabase_env.sql'), 'utf8'));
   await db.exec(fs.readFileSync(path.join(__dirname, '..', 'schema.sql'), 'utf8'));
   await db.exec(fs.readFileSync(path.join(__dirname, '..', '002_public_places.sql'), 'utf8'));
+  await db.exec(fs.readFileSync(path.join(__dirname, '..', '003_reviews_by_admins.sql'), 'utf8'));
 
   async function signUp(email, firstName, lastName) {
     const result = await db.query(
@@ -165,8 +166,36 @@ async function main() {
   const adminReads = Number((await as(boss, 'select count(*) from public.places')).rows[0].count);
   check(adminReads === 21 && (await publicView(boss)) === 20,
     'an admin reads every place, but the public list hides the one under review');
-  check(await fails(as(boss, "update public.places set status = 'approved', rating = null where id = $1", [place.id])),
-    'approving a place without a rating fails');
+  await as(boss, "update public.places set status = 'approved', rating = null where id = $1", [place.id]);
+  row = (await as(null, 'select rating from public.public_places where id = $1', [place.id])).rows[0];
+  check(row && row.rating === null, 'an admin approves a place without a rating: users will rate it');
+
+  console.log('Requests to become an operator');
+  await as(ion, "update public.profiles set operator_request = 'pending' where id = $1", [ion]);
+  check(await fails(as(boss, "update public.profiles set operator_request = 'rejected' where id = $1", [ion])),
+    'rejecting a request without a reason fails');
+  await as(boss, "update public.profiles set operator_request = 'rejected', operator_request_reason = 'Nu ai un local' where id = $1", [ion]);
+  row = (await as(ion, 'select operator_request, operator_request_reason from public.profiles')).rows[0];
+  check(row.operator_request === 'rejected' && row.operator_request_reason === 'Nu ai un local',
+    'he sees that the request was rejected, and why');
+  await as(ion, "update public.profiles set operator_request_reason = 'Altceva' where id = $1", [ion]);
+  row = (await as(ion, 'select operator_request_reason from public.profiles')).rows[0];
+  check(row.operator_request_reason === 'Nu ai un local', 'he cannot change the reason');
+  await as(ion, "update public.profiles set operator_request = 'pending' where id = $1", [ion]);
+  row = (await as(ion, 'select operator_request, operator_request_reason from public.profiles')).rows[0];
+  check(row.operator_request === 'pending' && row.operator_request_reason === null,
+    'asking again clears the old answer');
+
+  console.log('A suspended account');
+  await as(boss, "update public.profiles set suspended_reason = 'Spam' where id = $1", [ion]);
+  check(await fails(as(boss, "update public.profiles set first_name = 'Nou' where id = $1", [ion])),
+    'cannot be renamed until it is reactivated');
+  check(await fails(as(boss, "update public.profiles set role = 'operator' where id = $1", [ion])),
+    'cannot get a new role until it is reactivated');
+  await as(boss, 'update public.profiles set suspended_reason = null where id = $1', [ion]);
+  await as(boss, "update public.profiles set first_name = 'Ionuț' where id = $1", [ion]);
+  row = (await as(boss, 'select first_name from public.profiles where id = $1', [ion])).rows[0];
+  check(row.first_name === 'Ionuț', 'once reactivated, it can be changed again');
 
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);

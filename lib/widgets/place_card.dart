@@ -35,7 +35,7 @@ class PlaceCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '★ ${place.rating.toStringAsFixed(1)}',
+                    place.isRated ? '★ ${place.ratingText}' : 'Nou',
                     style: theme.textTheme.titleMedium,
                   ),
                 ],

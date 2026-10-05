@@ -26,11 +26,20 @@ List<Place> searchPlaces(
     case SortBy.recommended:
       break;
     case SortBy.ratingAscending:
-      result.sort((a, b) => a.rating.compareTo(b.rating));
+      result.sort((a, b) => _byRating(a, b, highestFirst: false));
     case SortBy.ratingDescending:
-      result.sort((a, b) => b.rating.compareTo(a.rating));
+      result.sort((a, b) => _byRating(a, b, highestFirst: true));
     case SortBy.nameAscending:
       result.sort((a, b) => normalize(a.name).compareTo(normalize(b.name)));
   }
   return result;
+}
+
+/// Compares two places by rating. The places nobody has rated yet come last
+/// either way: "lowest rating first" should not start with new places.
+int _byRating(Place a, Place b, {required bool highestFirst}) {
+  if (a.isRated != b.isRated) return a.isRated ? -1 : 1;
+  return highestFirst
+      ? b.rating.compareTo(a.rating)
+      : a.rating.compareTo(b.rating);
 }

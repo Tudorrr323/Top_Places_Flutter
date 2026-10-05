@@ -121,7 +121,6 @@ class _PlaceInfoState extends State<_PlaceInfo> {
   Widget build(BuildContext context) {
     final place = widget.place;
     final theme = Theme.of(context);
-    final rating = place.rating.toStringAsFixed(1);
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -155,11 +154,13 @@ class _PlaceInfoState extends State<_PlaceInfo> {
               const SizedBox(width: 12),
               // Read as "4.7 stele" instead of only "4.7".
               Semantics(
-                label: '$rating stele',
+                label: place.ratingLabel,
                 excludeSemantics: true,
                 child: Chip(
-                  avatar: const Icon(Icons.star),
-                  label: Text(rating),
+                  avatar: Icon(
+                    place.isRated ? Icons.star : Icons.fiber_new_outlined,
+                  ),
+                  label: Text(place.ratingText),
                 ),
               ),
             ],

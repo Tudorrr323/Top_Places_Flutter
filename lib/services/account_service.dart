@@ -28,8 +28,12 @@ class ProfileUpdate {
   /// Approving a request to become an operator is giving this role.
   ProfileUpdate.role(Role role) : row = {'role': role.name};
 
-  ProfileUpdate.rejectOperatorRequest()
-    : row = {'operator_request': 'rejected'};
+  /// The user sees [reason] on the Profil tab, and may ask again.
+  ProfileUpdate.rejectOperatorRequest(String reason)
+    : row = {
+        'operator_request': 'rejected',
+        'operator_request_reason': reason.trim(),
+      };
 
   ProfileUpdate.suspend(String reason)
     : row = {'suspended_reason': reason.trim()};

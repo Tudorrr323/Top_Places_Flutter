@@ -5,6 +5,7 @@ import 'package:top_places/screens/place_form_screen.dart';
 import 'package:top_places/services/place_service.dart';
 import 'package:top_places/services/places_repository.dart';
 import 'package:top_places/widgets/dialogs.dart';
+import 'package:top_places/widgets/list_search_field.dart';
 
 /// For admins: every place, by where it is in the review, with the decisions
 /// an admin can take on each. The database allows them to admins only.
@@ -17,6 +18,7 @@ class AdminPlacesScreen extends StatefulWidget {
 
 class _AdminPlacesScreenState extends State<AdminPlacesScreen> {
   PlaceStatus _shown = PlaceStatus.pending;
+  String _query = '';
   late Future<List<Place>> _places;
 
   @override
@@ -34,7 +36,8 @@ class _AdminPlacesScreenState extends State<AdminPlacesScreen> {
     });
   }
 
-  /// Asks for the details of a decision with [ask], then saves it.
+  /// Asks for the decision with [ask] (a confirmation or a reason), then
+  /// saves it.
   Future<void> _decide(Future<PlaceReview?> Function() ask, Place place) async {
     final review = await ask();
     if (review == null || !mounted) return;
@@ -51,24 +54,18 @@ class _AdminPlacesScreenState extends State<AdminPlacesScreen> {
     }
   }
 
-  Future<PlaceReview?> _askApproval(Place place) async {
-    final rating = await askRating(
+  Future<PlaceReview?> _confirmApproval(Place place) async {
+    final again = place.status == PlaceStatus.suspended;
+    final confirmed = await askConfirmation(
       context,
-      title: 'Aprobi „${place.name}”?',
-      action: 'Aprobă',
-      initial: place.rating > 0 ? place.rating : 4,
+      title: again ? 'Reactivezi „${place.name}”?' : 'Aprobi „${place.name}”?',
+      message: again
+          ? 'Localul apare din nou în Explorează.'
+          : 'Localul apare în Explorează pentru toată lumea. Ratingul îl '
+                'vor da cei care îl vizitează.',
+      action: again ? 'Reactivează' : 'Aprobă',
     );
-    return rating == null ? null : PlaceReview.approve(rating: rating);
-  }
-
-  Future<PlaceReview?> _askRating(Place place) async {
-    final rating = await askRating(
-      context,
-      title: 'Ratingul pentru „${place.name}”',
-      action: 'Salvează',
-      initial: place.rating,
-    );
-    return rating == null ? null : PlaceReview.rate(rating);
+    return confirmed ? PlaceReview.approve() : null;
   }
 
   Future<PlaceReview?> _askRejection(Place place) async {
@@ -112,6 +109,13 @@ class _AdminPlacesScreenState extends State<AdminPlacesScreen> {
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: ListSearchField(
+                  hint: 'Caută după nume, oraș sau adresă',
+                  onChanged: (query) => setState(() => _query = query),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -137,6 +141,13 @@ class _AdminPlacesScreenState extends State<AdminPlacesScreen> {
                     }
                     final places = snapshot.data!
                         .where((place) => place.status == _shown)
+                        .where(
+                          (place) => matchesSearch(_query, [
+                            place.name,
+                            place.city,
+                            place.address,
+                          ]),
+                        )
                         .toList();
                     if (places.isEmpty) {
                       return const Center(child: Text('Niciun local aici.'));
@@ -169,22 +180,24 @@ class _AdminPlacesScreenState extends State<AdminPlacesScreen> {
         button('Respinge', () => _decide(() => _askRejection(place), place)),
         edit,
         FilledButton(
-          onPressed: () => _decide(() => _askApproval(place), place),
+          onPressed: () => _decide(() => _confirmApproval(place), place),
           child: const Text('Aprobă'),
         ),
       ],
       PlaceStatus.approved => [
         button('Suspendă', () => _decide(() => _askSuspension(place), place)),
-        button('Rating', () => _decide(() => _askRating(place), place)),
         edit,
       ],
       PlaceStatus.rejected => [
         edit,
-        button('Aprobă', () => _decide(() => _askApproval(place), place)),
+        button('Aprobă', () => _decide(() => _confirmApproval(place), place)),
       ],
       PlaceStatus.suspended => [
         edit,
-        button('Reactivează', () => _decide(() => _askApproval(place), place)),
+        button(
+          'Reactivează',
+          () => _decide(() => _confirmApproval(place), place),
+        ),
       ],
     };
   }
@@ -206,9 +219,7 @@ class _PlaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rating = place.rating > 0
-        ? '★ ${place.rating.toStringAsFixed(1)}'
-        : 'fără rating';
+    final rating = place.isRated ? '★ ${place.ratingText}' : 'fără rating';
     final reason = place.statusReason;
 
     return Card(

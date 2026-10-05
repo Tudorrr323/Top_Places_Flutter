@@ -26,19 +26,32 @@ Future<String?> askReason(
   );
 }
 
-/// Asks for a rating from 1 to 5, starting at [initial]. Returns it, or
-/// null when cancelled.
-Future<double?> askRating(
+/// Asks whether to go ahead with [action], explained by [message]. True
+/// only when confirmed.
+Future<bool> askConfirmation(
   BuildContext context, {
   required String title,
+  required String message,
   required String action,
-  double initial = 4,
-}) {
-  return showDialog<double>(
+}) async {
+  final confirmed = await showDialog<bool>(
     context: context,
-    builder: (context) =>
-        _RatingDialog(title: title, action: action, initial: initial),
+    builder: (context) => AlertDialog(
+      title: Text(title),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Renunță'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: Text(action),
+        ),
+      ],
+    ),
   );
+  return confirmed ?? false;
 }
 
 String? _required(String? value) =>
@@ -158,63 +171,6 @@ class _ReasonDialogState extends State<_ReasonDialog> {
           child: const Text('Renunță'),
         ),
         FilledButton(onPressed: _confirm, child: Text(widget.action)),
-      ],
-    );
-  }
-}
-
-class _RatingDialog extends StatefulWidget {
-  const _RatingDialog({
-    required this.title,
-    required this.action,
-    required this.initial,
-  });
-
-  final String title;
-  final String action;
-  final double initial;
-
-  @override
-  State<_RatingDialog> createState() => _RatingDialogState();
-}
-
-class _RatingDialogState extends State<_RatingDialog> {
-  late double _rating = widget.initial;
-
-  @override
-  Widget build(BuildContext context) {
-    final rating = _rating.toStringAsFixed(1);
-
-    return AlertDialog(
-      title: Text(widget.title),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('★ $rating', style: Theme.of(context).textTheme.headlineMedium),
-          Slider(
-            value: _rating,
-            min: 1,
-            max: 5,
-            // Steps of 0.1, like the ratings in the data.
-            divisions: 40,
-            label: rating,
-            semanticFormatterCallback: (value) =>
-                '${value.toStringAsFixed(1)} stele',
-            onChanged: (value) => setState(() => _rating = value),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Renunță'),
-        ),
-        FilledButton(
-          // Rounded, so 4.199999 is stored as 4.2.
-          onPressed: () =>
-              Navigator.pop(context, double.parse(_rating.toStringAsFixed(1))),
-          child: Text(widget.action),
-        ),
       ],
     );
   }

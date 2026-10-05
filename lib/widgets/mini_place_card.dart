@@ -22,7 +22,11 @@ class MiniPlaceCard extends StatelessWidget {
           children: [
             Text(place.name, style: textTheme.titleMedium),
             Text(place.address),
-            Text('★ ${place.rating.toStringAsFixed(1)}'),
+            Text(
+              place.isRated
+                  ? '★ ${place.ratingText}'
+                  : 'Local nou, încă fără rating',
+            ),
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,

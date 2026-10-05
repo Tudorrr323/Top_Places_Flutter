@@ -78,7 +78,7 @@ class Place {
   /// The Romanian translation of [description], or null if there is none.
   final String? descriptionRo;
 
-  /// From 1 to 5; 0 while a new place waits for an admin to rate it.
+  /// From 1 to 5; 0 for a new place that nobody has rated yet.
   final double rating;
 
   final PlaceStatus status;
@@ -88,6 +88,15 @@ class Place {
 
   /// The operator who added the place; null for the original 20.
   final String? ownerId;
+
+  /// False for a new place, until people rate it.
+  bool get isRated => rating > 0;
+
+  /// "4.7", or "Nou" for a place without a rating yet.
+  String get ratingText => isRated ? rating.toStringAsFixed(1) : 'Nou';
+
+  /// What a screen reader says instead of [ratingText].
+  String get ratingLabel => isRated ? '$ratingText stele' : 'local nou';
 
   /// The city is the last part of the address ("Str. X, Nr. 1, Iași" -> "Iași").
   /// The data writes Bucharest in English, so it is mapped to the Romanian

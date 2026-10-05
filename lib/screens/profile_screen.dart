@@ -18,17 +18,9 @@ class ProfileScreen extends StatelessWidget {
     final profile = account.profile;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profil'),
-        actions: [
-          if (profile != null)
-            IconButton(
-              tooltip: 'Reîncarcă profilul',
-              onPressed: account.isBusy ? null : account.refresh,
-              icon: const Icon(Icons.refresh),
-            ),
-        ],
-      ),
+      // No refresh button: opening the tab loads the account again (see
+      // HomeShell).
+      appBar: AppBar(title: const Text('Profil')),
       body: Center(
         // On wide windows the forms stay readable instead of stretching.
         child: ConstrainedBox(
@@ -81,6 +73,9 @@ class _SignInFormState extends State<_SignInForm> {
   final _firstName = TextEditingController();
   final _lastName = TextEditingController();
   bool _newAccount = false;
+
+  /// Shows the password as text, for checking what was typed.
+  bool _showPassword = false;
 
   /// Set after a sign-up: the address the confirmation email went to.
   String? _confirmationSentTo;
@@ -176,8 +171,11 @@ class _SignInFormState extends State<_SignInForm> {
           ),
           TextFormField(
             controller: _password,
-            decoration: const InputDecoration(labelText: 'Parolă'),
-            obscureText: true,
+            decoration: InputDecoration(
+              labelText: 'Parolă',
+              suffixIcon: _showPasswordButton(),
+            ),
+            obscureText: !_showPassword,
             textInputAction: TextInputAction.done,
             autofillHints: [
               _newAccount ? AutofillHints.newPassword : AutofillHints.password,
@@ -190,7 +188,8 @@ class _SignInFormState extends State<_SignInForm> {
           if (_newAccount)
             TextFormField(
               decoration: const InputDecoration(labelText: 'Repetă parola'),
-              obscureText: true,
+              // The same button shows both passwords, to compare them.
+              obscureText: !_showPassword,
               validator: (value) =>
                   value == _password.text ? null : 'Parolele nu sunt la fel.',
             ),
@@ -201,6 +200,15 @@ class _SignInFormState extends State<_SignInForm> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _showPasswordButton() {
+    return IconButton(
+      // The tooltip is also what screen readers say.
+      tooltip: _showPassword ? 'Ascunde parola' : 'Arată parola',
+      icon: Icon(_showPassword ? Icons.visibility_off : Icons.visibility),
+      onPressed: () => setState(() => _showPassword = !_showPassword),
     );
   }
 
@@ -318,7 +326,8 @@ class _AccountDetails extends StatelessWidget {
       ];
     }
     if (profile.role == Role.operator) {
-      return [MyPlaces(canEdit: !profile.isSuspended)];
+      // A new key for every loaded profile: the list loads again with it.
+      return [MyPlaces(key: ObjectKey(profile), canEdit: !profile.isSuspended)];
     }
     if (profile.isSuspended) return const [];
     return switch (profile.operatorRequest) {
@@ -327,7 +336,10 @@ class _AccountDetails extends StatelessWidget {
       ],
       final request => [
         if (request == OperatorRequest.rejected)
-          const Text('Cererea ta de a deveni operator a fost respinsă.'),
+          Text(
+            'Cererea ta de a deveni operator a fost respinsă. Motiv: '
+            '${profile.operatorRequestReason}',
+          ),
         const SizedBox(height: 8),
         FilledButton.tonalIcon(
           onPressed: account.isBusy ? null : account.requestOperatorRole,

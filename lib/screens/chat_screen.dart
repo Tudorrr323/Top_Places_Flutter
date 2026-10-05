@@ -94,7 +94,9 @@ class _ChatScreenState extends State<ChatScreen> {
         'spui politicos că te ocupi doar de localurile din aplicație.',
     'Localurile:',
     for (final place in _bot.places)
-      '- ${place.name}, ${place.city}, rating ${place.rating}: '
+      '- ${place.name}, ${place.city}, '
+          '${place.isRated ? 'rating ${place.ratingText}' : 'local nou, '
+                    'fără rating încă'}: '
           '${place.description}',
   ].join('\n');
 

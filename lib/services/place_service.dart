@@ -44,18 +44,17 @@ class PlaceDraft {
 }
 
 /// What an admin decides about a place. The database checks the rest: a
-/// reason is required to reject or suspend, and a rating to approve.
+/// reason is required to reject or suspend. Ratings are not the admin's:
+/// they will come from the people who visit the place.
 class PlaceReview {
-  PlaceReview.approve({required double rating})
-    : row = {'status': 'approved', 'rating': rating};
+  /// Approves the place, or reactivates a suspended one.
+  PlaceReview.approve() : row = {'status': 'approved'};
 
   PlaceReview.reject(String reason)
     : row = {'status': 'rejected', 'status_reason': reason.trim()};
 
   PlaceReview.suspend(String reason)
     : row = {'status': 'suspended', 'status_reason': reason.trim()};
-
-  PlaceReview.rate(double rating) : row = {'rating': rating};
 
   /// The columns to change.
   final Map<String, Object> row;

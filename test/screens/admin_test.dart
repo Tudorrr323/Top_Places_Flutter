@@ -75,19 +75,30 @@ void main() {
   }
 
   group('places', () {
-    testWidgets('an admin approves a place with a rating', (tester) async {
+    testWidgets('approving asks first, and sets no rating', (tester) async {
       await openAdmin(tester, 'Localuri: aprobări și suspendări');
       expect(find.text('Ceainăria Ana'), findsOne);
 
       await tester.tap(find.widgetWithText(FilledButton, 'Aprobă'));
       await tester.pumpAndSettle();
+      expect(find.text('Aprobi „Ceainăria Ana”?'), findsOne);
       // The dialog's button, over the one on the card.
       await tester.tap(find.widgetWithText(FilledButton, 'Aprobă').last);
       await tester.pumpAndSettle();
 
       expect(places.all.single.status, PlaceStatus.approved);
-      expect(places.all.single.rating, 4.0);
+      expect(places.all.single.isRated, isFalse, reason: 'users rate it');
       expect(find.text('Ceainăria Ana'), findsNothing, reason: 'not waiting');
+    });
+
+    testWidgets('the search bar filters the places', (tester) async {
+      await openAdmin(tester, 'Localuri: aprobări și suspendări');
+
+      await tester.enterText(find.byType(TextField), 'cluj');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ceainăria Ana'), findsNothing);
+      expect(find.text('Niciun local aici.'), findsOne);
     });
 
     testWidgets('rejecting a place asks for the reason', (tester) async {
@@ -109,17 +120,33 @@ void main() {
   });
 
   group('accounts', () {
-    testWidgets('approving a request gives the operator role', (tester) async {
+    testWidgets('a request has only Aprobă and Respinge, no menu', (
+      tester,
+    ) async {
       await openAdmin(tester, 'Utilizatori și operatori');
       expect(find.text('Dan Pop'), findsOne);
+      expect(find.byTooltip('Acțiuni pentru Dan Pop'), findsNothing);
 
-      await tester.tap(find.byTooltip('Acțiuni pentru Dan Pop'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Aprobă'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Aprobă ca operator'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Aprobă').last);
       await tester.pumpAndSettle();
 
       expect(accounts.profiles[1].role, Role.operator);
       expect(find.text('Dan Pop'), findsNothing, reason: 'no request left');
+    });
+
+    testWidgets('rejecting a request asks for the reason', (tester) async {
+      await openAdmin(tester, 'Utilizatori și operatori');
+
+      await tester.tap(find.widgetWithText(TextButton, 'Respinge'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextFormField), 'Nu ai un local');
+      await tester.tap(find.widgetWithText(FilledButton, 'Respinge'));
+      await tester.pumpAndSettle();
+
+      expect(accounts.profiles[1].operatorRequest, OperatorRequest.rejected);
+      expect(accounts.profiles[1].operatorRequestReason, 'Nu ai un local');
     });
 
     testWidgets('suspending asks for a reason, never on her own account', (
@@ -147,6 +174,21 @@ void main() {
 
       expect(accounts.profiles[2].suspendedReason, 'Recenzii false');
       expect(find.textContaining('Suspendat: Recenzii false'), findsOne);
+      // Suspended: only Reactivează, no renaming or new role meanwhile.
+      expect(find.byTooltip('Acțiuni pentru Ion Ionescu'), findsNothing);
+      expect(find.widgetWithText(FilledButton, 'Reactivează'), findsOne);
+    });
+
+    testWidgets('the search bar filters the accounts', (tester) async {
+      await openAdmin(tester, 'Utilizatori și operatori');
+      await tester.tap(find.text('Toți'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'ion@');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ion Ionescu'), findsOne);
+      expect(find.text('Maria Admin'), findsNothing);
     });
   });
 }

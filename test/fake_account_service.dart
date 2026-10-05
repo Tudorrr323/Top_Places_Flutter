@@ -20,6 +20,9 @@ class FakeAccountService implements AccountService {
   @override
   Future<Profile?> loadProfile() async => _profile;
 
+  /// What an admin changed elsewhere, seen at the next load.
+  void replaceProfile(Profile profile) => _profile = profile;
+
   @override
   Future<void> signIn({required String email, required String password}) async {
     if (unconfirmed.contains(email)) {
@@ -72,17 +75,23 @@ class FakeAccountService implements AccountService {
         ? Role.values.byName(row['role']! as String)
         : old.role;
     final request = row['operator_request'] as String?;
+    final newRequest = role != Role.user
+        ? null
+        : request == null
+        ? old.operatorRequest
+        : OperatorRequest.values.byName(request);
     final profile = Profile(
       id: old.id,
       email: old.email,
       firstName: row['first_name'] as String? ?? old.firstName,
       lastName: row['last_name'] as String? ?? old.lastName,
       role: role,
-      operatorRequest: role != Role.user
-          ? null
-          : request == null
-          ? old.operatorRequest
-          : OperatorRequest.values.byName(request),
+      operatorRequest: newRequest,
+      // A reason belongs only to a rejected request.
+      operatorRequestReason: newRequest == OperatorRequest.rejected
+          ? row['operator_request_reason'] as String? ??
+                old.operatorRequestReason
+          : null,
       suspendedReason: row.containsKey('suspended_reason')
           ? row['suspended_reason'] as String?
           : old.suspendedReason,
@@ -104,6 +113,10 @@ class FakeAccountService implements AccountService {
       lastName: lastName ?? profile.lastName,
       role: profile.role,
       operatorRequest: request ?? profile.operatorRequest,
+      // Asking again clears the answer to the last request.
+      operatorRequestReason: request == null
+          ? profile.operatorRequestReason
+          : null,
       suspendedReason: profile.suspendedReason,
     );
   }

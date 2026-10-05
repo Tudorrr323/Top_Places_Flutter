@@ -118,4 +118,65 @@ void main() {
 
     expect(find.widgetWithText(FilledButton, 'Intră în cont'), findsOne);
   });
+
+  testWidgets('the eye button shows and hides the password', (tester) async {
+    await openProfile(tester, accounts: FakeAccountService());
+    await type(tester, 'Parolă', 'parola123');
+
+    bool hidden() => tester
+        .widget<EditableText>(
+          find.descendant(
+            of: find.widgetWithText(TextFormField, 'Parolă'),
+            matching: find.byType(EditableText),
+          ),
+        )
+        .obscureText;
+
+    expect(hidden(), isTrue);
+    await tester.tap(find.byTooltip('Arată parola'));
+    await tester.pump();
+    expect(hidden(), isFalse);
+    await tester.tap(find.byTooltip('Ascunde parola'));
+    await tester.pump();
+    expect(hidden(), isTrue);
+  });
+
+  testWidgets('opening the Profil tab loads the account again', (tester) async {
+    final accounts = FakeAccountService(signedIn: ana);
+    await openProfile(tester, accounts: accounts);
+    expect(find.text('Vreau să adaug localuri'), findsOne);
+
+    // Meanwhile an admin turns the request into the operator role.
+    accounts.replaceProfile(
+      const Profile(
+        id: '1',
+        email: 'ana@test.ro',
+        firstName: 'Ana',
+        lastName: 'Pop',
+        role: Role.operator,
+      ),
+    );
+    await tester.tap(find.text('Explorează'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Profil'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Localurile mele'), findsOne);
+  });
+
+  testWidgets('a rejected request shows the reason', (tester) async {
+    const rejected = Profile(
+      id: '1',
+      email: 'ana@test.ro',
+      firstName: 'Ana',
+      lastName: 'Pop',
+      role: Role.user,
+      operatorRequest: OperatorRequest.rejected,
+      operatorRequestReason: 'Nu ai un local',
+    );
+    await openProfile(tester, accounts: FakeAccountService(signedIn: rejected));
+
+    expect(find.textContaining('Motiv: Nu ai un local'), findsOne);
+    expect(find.text('Trimite din nou cererea'), findsOne);
+  });
 }

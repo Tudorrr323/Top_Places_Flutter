@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:top_places/models/place.dart';
 import 'package:top_places/screens/place_form_screen.dart';
 import 'package:top_places/services/place_service.dart';
+import 'package:top_places/widgets/list_search_field.dart';
 
 /// An operator's own places, each with where it is in the review, and the
 /// buttons to add or edit one. [canEdit] is false for a suspended account.
@@ -17,6 +18,7 @@ class MyPlaces extends StatefulWidget {
 
 class _MyPlacesState extends State<MyPlaces> {
   late Future<List<Place>> _places;
+  String _query = '';
 
   @override
   void initState() {
@@ -58,6 +60,11 @@ class _MyPlacesState extends State<MyPlaces> {
           child: Text('Localurile mele', style: theme.textTheme.titleMedium),
         ),
         const SizedBox(height: 8),
+        ListSearchField(
+          hint: 'Caută în localurile tale',
+          onChanged: (query) => setState(() => _query = query),
+        ),
+        const SizedBox(height: 8),
         FutureBuilder(
           future: _places,
           builder: (context, snapshot) {
@@ -70,9 +77,21 @@ class _MyPlacesState extends State<MyPlaces> {
                 style: TextStyle(color: theme.colorScheme.error),
               );
             }
-            final places = snapshot.data!;
-            if (places.isEmpty) {
+            final all = snapshot.data!;
+            if (all.isEmpty) {
               return const Text('Încă nu ai adăugat niciun local.');
+            }
+            final places = all
+                .where(
+                  (place) => matchesSearch(_query, [
+                    place.name,
+                    place.city,
+                    place.address,
+                  ]),
+                )
+                .toList();
+            if (places.isEmpty) {
+              return const Text('Niciun local nu se potrivește căutării.');
             }
             return Column(
               children: [

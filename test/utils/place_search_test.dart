@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:top_places/models/filters.dart';
+import 'package:top_places/models/place.dart';
 import 'package:top_places/services/places_repository.dart';
 import 'package:top_places/utils/place_search.dart';
 
@@ -79,5 +80,38 @@ void main() {
       expect(result.first.name, "Bistro 'At The Forest'");
       expect(result.last.name, "Vegan Restaurant 'The Green Garden'");
     });
+  });
+
+  test('places without a rating come last, whichever way it sorts', () {
+    const rated = Place(
+      id: 'a',
+      name: 'A',
+      address: 'Str. A, Nr. 1, Iași',
+      city: 'Iași',
+      lat: 47.1,
+      lng: 27.5,
+      imageUrl: '',
+      description: 'Un loc cu rating.',
+      rating: 3,
+    );
+    const unrated = Place(
+      id: 'b',
+      name: 'B',
+      address: 'Str. B, Nr. 2, Iași',
+      city: 'Iași',
+      lat: 47.1,
+      lng: 27.5,
+      imageUrl: '',
+      description: 'Un loc nou, fără rating.',
+      rating: 0,
+    );
+    for (final sortBy in [SortBy.ratingAscending, SortBy.ratingDescending]) {
+      final result = searchPlaces(const [
+        unrated,
+        rated,
+      ], filters: Filters(sortBy: sortBy));
+      expect(result.last.name, 'B', reason: sortBy.name);
+    }
+    expect(unrated.ratingText, 'Nou');
   });
 }

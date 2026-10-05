@@ -14,6 +14,7 @@ class Profile {
     required this.lastName,
     required this.role,
     this.operatorRequest,
+    this.operatorRequestReason,
     this.suspendedReason,
   });
 
@@ -28,6 +29,7 @@ class Profile {
       operatorRequest: request == null
           ? null
           : OperatorRequest.values.byName(request),
+      operatorRequestReason: json['operator_request_reason'] as String?,
       suspendedReason: json['suspended_reason'] as String?,
     );
   }
@@ -38,6 +40,9 @@ class Profile {
   final String lastName;
   final Role role;
   final OperatorRequest? operatorRequest;
+
+  /// Why an admin rejected the request; only for a rejected one.
+  final String? operatorRequestReason;
 
   /// Why an admin suspended the account; null while it is active.
   final String? suspendedReason;
