@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:top_places/l10n/l10n.dart';
 import 'package:top_places/router.dart';
 import 'package:top_places/services/account_service.dart';
 import 'package:top_places/services/gemini_service.dart';
@@ -10,6 +11,7 @@ import 'package:top_places/services/place_service.dart';
 import 'package:top_places/services/places_repository.dart';
 import 'package:top_places/view_models/account_view_model.dart';
 import 'package:top_places/view_models/explore_view_model.dart';
+import 'package:top_places/view_models/language_settings.dart';
 
 /// The blue of the original app (#007AFF), used to generate both themes.
 const _brandBlue = Color(0xFF007AFF);
@@ -21,6 +23,7 @@ class TopPlacesApp extends StatefulWidget {
     this.gemini,
     this.accounts,
     this.location = const DeviceLocationService(),
+    this.language,
   });
 
   final PlacesRepository repository;
@@ -35,6 +38,9 @@ class TopPlacesApp extends StatefulWidget {
   /// Where the device is, for the GPS button on the map.
   final LocationService location;
 
+  /// The language of the app; Romanian, and not remembered, when null.
+  final LanguageSettings? language;
+
   @override
   State<TopPlacesApp> createState() => _TopPlacesAppState();
 }
@@ -42,6 +48,7 @@ class TopPlacesApp extends StatefulWidget {
 class _TopPlacesAppState extends State<TopPlacesApp> {
   // Created once and kept across rebuilds, so the current page survives.
   final GoRouter _router = createRouter();
+  late final _language = widget.language ?? LanguageSettings();
 
   @override
   void dispose() {
@@ -71,24 +78,31 @@ class _TopPlacesAppState extends State<TopPlacesApp> {
         ChangeNotifierProvider(
           create: (context) => AccountViewModel(widget.accounts),
         ),
+        ChangeNotifierProvider.value(value: _language),
       ],
-      child: MaterialApp.router(
-        title: 'Top Places',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: _brandBlue),
-        ),
-        darkTheme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: _brandBlue,
-            brightness: Brightness.dark,
+      // Rebuilt with the texts of the new language when it changes.
+      child: Consumer<LanguageSettings>(
+        builder: (context, language, child) => MaterialApp.router(
+          onGenerateTitle: (context) => context.l10n.appTitle,
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(seedColor: _brandBlue),
           ),
+          darkTheme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: _brandBlue,
+              brightness: Brightness.dark,
+            ),
+          ),
+          themeMode: ThemeMode.system,
+          locale: language.locale,
+          supportedLocales: LanguageSettings.supported,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            ...GlobalMaterialLocalizations.delegates,
+          ],
+          routerConfig: _router,
         ),
-        themeMode: ThemeMode.system,
-        locale: const Locale('ro'),
-        supportedLocales: const [Locale('ro'), Locale('en')],
-        localizationsDelegates: GlobalMaterialLocalizations.delegates,
-        routerConfig: _router,
       ),
     );
   }

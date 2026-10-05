@@ -112,6 +112,6 @@ void main() {
       ], filters: Filters(sortBy: sortBy));
       expect(result.last.name, 'B', reason: sortBy.name);
     }
-    expect(unrated.ratingText, 'Nou');
+    expect(unrated.isRated, isFalse);
   });
 }

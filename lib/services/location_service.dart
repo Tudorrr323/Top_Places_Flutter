@@ -2,18 +2,28 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
-/// Why the location is not available, with a message the user can act on.
-class LocationException implements Exception {
-  const LocationException(this.message, {this.openSettings});
+/// Why the location is not available.
+enum LocationProblem {
+  serviceOff,
+  denied,
+  deniedForever,
+  blockedByBrowser,
+  accuracyOff,
+  notFound,
+}
 
-  final String message;
+/// The location is not available; the screen says why, in its language.
+class LocationException implements Exception {
+  const LocationException(this.problem, {this.openSettings});
+
+  final LocationProblem problem;
 
   /// Opens the settings where the user can fix it, or null when there are
   /// none to open (on the web, the browser asks again).
   final Future<bool> Function()? openSettings;
 
   @override
-  String toString() => message;
+  String toString() => 'LocationException($problem)';
 }
 
 /// Where the device is. An interface, so that the tests can use a fake.
@@ -32,7 +42,7 @@ class DeviceLocationService implements LocationService {
   Future<LatLng> currentLocation() async {
     if (!await Geolocator.isLocationServiceEnabled()) {
       throw LocationException(
-        'Localizarea e oprită pe dispozitiv. Pornește-o și încearcă din nou.',
+        LocationProblem.serviceOff,
         openSettings: kIsWeb ? null : Geolocator.openLocationSettings,
       );
     }
@@ -42,20 +52,16 @@ class DeviceLocationService implements LocationService {
       permission = await Geolocator.requestPermission();
     }
     if (permission == LocationPermission.denied) {
-      throw const LocationException(
-        'Fără permisiunea de localizare nu te pot arăta pe hartă.',
-      );
+      throw const LocationException(LocationProblem.denied);
     }
     if (permission == LocationPermission.deniedForever) {
       // The system no longer asks: only the settings can change it.
-      throw LocationException(
-        kIsWeb
-            ? 'Browserul blochează localizarea. O poți permite din setările '
-                  'site-ului.'
-            : 'Ai refuzat localizarea pentru Top Places. O poți permite din '
-                  'setările aplicației.',
-        openSettings: kIsWeb ? null : Geolocator.openAppSettings,
-      );
+      throw kIsWeb
+          ? const LocationException(LocationProblem.blockedByBrowser)
+          : const LocationException(
+              LocationProblem.deniedForever,
+              openSettings: Geolocator.openAppSettings,
+            );
     }
     try {
       final position = await Geolocator.getCurrentPosition(
@@ -68,15 +74,10 @@ class DeviceLocationService implements LocationService {
     } on LocationServiceDisabledException {
       // On Android, Google first asks to turn on "Location Accuracy";
       // refused, there is no location.
-      throw const LocationException(
-        'Localizarea precisă a rămas oprită. Apasă din nou și accept-o când '
-        'telefonul te întreabă.',
-      );
+      throw const LocationException(LocationProblem.accuracyOff);
     } on Exception {
       // A timeout, or the location turned off in the meantime.
-      throw const LocationException(
-        'Nu am putut afla unde ești. Încearcă din nou.',
-      );
+      throw const LocationException(LocationProblem.notFound);
     }
   }
 }

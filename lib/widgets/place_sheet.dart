@@ -3,9 +3,9 @@ import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:top_places/l10n/l10n.dart';
 import 'package:top_places/models/place.dart';
 import 'package:top_places/services/places_repository.dart';
-import 'package:top_places/utils/plural.dart';
 import 'package:top_places/widgets/place_photo.dart';
 import 'package:top_places/widgets/place_tabs.dart';
 
@@ -158,6 +158,7 @@ class _Summary extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurfaceVariant;
+    final l10n = context.l10n;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
@@ -208,9 +209,9 @@ class _Summary extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Semantics(
-                      label: _ratingLine(place, forScreenReader: true),
+                      label: _ratingLine(l10n, place, forScreenReader: true),
                       excludeSemantics: true,
-                      child: Text(_ratingLine(place)),
+                      child: Text(_ratingLine(l10n, place)),
                     ),
                   ],
                 ),
@@ -220,7 +221,7 @@ class _Summary extends StatelessWidget {
               ValueListenableBuilder(
                 valueListenable: full,
                 builder: (context, full, child) => IconButton(
-                  tooltip: full ? 'Micșorează' : 'Toate detaliile',
+                  tooltip: full ? context.l10n.shrink : context.l10n.allDetails,
                   icon: Icon(full ? Icons.expand_more : Icons.expand_less),
                   onPressed: onResize,
                 ),
@@ -230,7 +231,7 @@ class _Summary extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(0, 8, 8, 0),
             child: Text(
-              place.descriptionRo ?? place.description,
+              l10n.description(place),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -242,14 +243,18 @@ class _Summary extends StatelessWidget {
 
   /// "★ 4.6 · 12 recenzii", or "4.6 stele, 12 recenzii" for a screen
   /// reader.
-  static String _ratingLine(Place place, {bool forScreenReader = false}) {
-    if (!place.isRated) return 'Local nou, fără recenzii încă';
+  static String _ratingLine(
+    AppLocalizations l10n,
+    Place place, {
+    bool forScreenReader = false,
+  }) {
+    if (!place.isRated) return l10n.newPlaceNoReviews;
     final rating = forScreenReader
-        ? place.ratingLabel
-        : '★ ${place.ratingText}';
+        ? l10n.placeRatingLabel(place)
+        : '★ ${l10n.placeRating(place)}';
     final count = place.ratingCount;
     if (count == 0) return rating;
-    final reviews = countLabel(count, 'recenzie', 'recenzii');
+    final reviews = l10n.reviewCount(count);
     return forScreenReader ? '$rating, $reviews' : '$rating · $reviews';
   }
 }

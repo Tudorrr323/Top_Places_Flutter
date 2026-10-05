@@ -36,7 +36,7 @@ void main() {
 
     expect(await account.signIn('ana@test.ro', 'greșită'), isFalse);
     expect(account.profile, isNull);
-    expect(account.error, 'Email sau parolă greșite.');
+    expect(account.error?.problem, AccountProblem.wrongCredentials);
   });
 
   test('a new account signs in only after the email is confirmed', () async {
@@ -52,7 +52,7 @@ void main() {
       isTrue,
     );
     expect(await account.signIn('ion@test.ro', 'parola123'), isFalse);
-    expect(account.error, contains('confirmat'));
+    expect(account.error?.problem, AccountProblem.emailNotConfirmed);
   });
 
   test('Profile.fromJson reads the role, the request and the suspension', () {
@@ -71,26 +71,21 @@ void main() {
     expect(profile.isSuspended, isTrue);
   });
 
-  test('Supabase errors become messages in Romanian', () {
+  test('Supabase errors become problems the screen can name', () {
     expect(
-      authErrorMessage(
+      authError(
         const AuthApiException(
           'Email not confirmed',
           statusCode: '400',
           code: 'email_not_confirmed',
         ),
-      ),
-      contains('confirmat'),
+      ).problem,
+      AccountProblem.emailNotConfirmed,
     );
-    expect(
-      authErrorMessage(
-        const AuthApiException(
-          'Invalid login credentials',
-          statusCode: '400',
-          code: 'invalid_credentials',
-        ),
-      ),
-      'Email sau parolă greșite.',
+    final unknown = authError(
+      const AuthApiException('Something new', statusCode: '500', code: 'new'),
     );
+    expect(unknown.problem, AccountProblem.failed);
+    expect(unknown.detail, 'Something new');
   });
 }

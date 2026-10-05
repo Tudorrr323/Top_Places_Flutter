@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:top_places/l10n/l10n.dart';
 import 'package:top_places/models/profile.dart';
 import 'package:top_places/services/account_service.dart';
 import 'package:top_places/services/places_repository.dart';
@@ -51,6 +52,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final repository = context.read<PlacesRepository>();
     final account = context.read<AccountViewModel>();
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
     try {
       await service.updateProfile(profile.id, update);
       // A new name of the admin's own shows on the Profil tab too.
@@ -60,7 +62,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       await repository.refresh();
       if (mounted) _reload();
     } on AccountException catch (error) {
-      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+      messenger.showSnackBar(SnackBar(content: Text(l10n.accountError(error))));
     }
   }
 
@@ -69,7 +71,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final myId = context.watch<AccountViewModel>().profile?.id;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Utilizatori')),
+      appBar: AppBar(title: Text(context.l10n.adminUsersTitle)),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
@@ -79,7 +81,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 child: ListSearchField(
-                  hint: 'Caută după nume sau email',
+                  hint: context.l10n.searchUsers,
                   onChanged: (query) => setState(() => _query = query),
                 ),
               ),
@@ -89,10 +91,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    for (final (shown, label) in const [
-                      (_Shown.requests, 'Cereri de operator'),
-                      (_Shown.suspended, 'Suspendați'),
-                      (_Shown.all, 'Toți'),
+                    for (final (shown, label) in [
+                      (_Shown.requests, context.l10n.filterRequests),
+                      (_Shown.suspended, context.l10n.filterSuspendedUsers),
+                      (_Shown.all, context.l10n.filterAllUsers),
                     ])
                       ChoiceChip(
                         label: Text(label),
@@ -110,7 +112,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       return const Center(child: CircularProgressIndicator());
                     }
                     if (snapshot.error case final error?) {
-                      return Center(child: Text(error.toString()));
+                      return Center(child: Text(context.l10n.error(error)));
                     }
                     final profiles = snapshot.data!
                         .where(
@@ -130,7 +132,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         )
                         .toList();
                     if (profiles.isEmpty) {
-                      return const Center(child: Text('Niciun cont aici.'));
+                      return Center(child: Text(context.l10n.noAccountsHere));
                     }
                     return ListView(
                       padding: const EdgeInsets.all(16),
@@ -195,7 +197,7 @@ class _UserCard extends StatelessWidget {
                 if (!profile.isSuspended && !hasRequest) _menu(context),
               ],
             ),
-            Text(_details()),
+            Text(_details(context.l10n)),
             if (profile.isSuspended || hasRequest)
               Align(
                 alignment: Alignment.centerRight,
@@ -206,19 +208,19 @@ class _UserCard extends StatelessWidget {
                           FilledButton(
                             onPressed: () =>
                                 onChange(() => _confirmReactivation(context)),
-                            child: const Text('Reactivează'),
+                            child: Text(context.l10n.reactivate),
                           ),
                         ]
                       : [
                           TextButton(
                             onPressed: () =>
                                 onChange(() => _askRejection(context)),
-                            child: const Text('Respinge'),
+                            child: Text(context.l10n.reject),
                           ),
                           FilledButton(
                             onPressed: () =>
                                 onChange(() => _confirmOperator(context)),
-                            child: const Text('Aprobă'),
+                            child: Text(context.l10n.approve),
                           ),
                         ],
                 ),
@@ -233,24 +235,25 @@ class _UserCard extends StatelessWidget {
 
   /// The ⋮ menu of an active account without a request.
   Widget _menu(BuildContext context) {
+    final l10n = context.l10n;
     final items = <(String, _Ask)>[
-      ('Schimbă numele', () => _askName(context)),
+      (l10n.changeName, () => _askName(context)),
       if (!isMe) ...[
         for (final role in Role.values)
           if (role != profile.role)
             (
               switch (role) {
-                Role.user => 'Fă-l utilizator',
-                Role.operator => 'Fă-l operator',
-                Role.admin => 'Fă-l administrator',
+                Role.user => l10n.makeUser,
+                Role.operator => l10n.makeOperator,
+                Role.admin => l10n.makeAdmin,
               },
               () async => ProfileUpdate.role(role),
             ),
-        ('Suspendă contul', () => _askSuspension(context)),
+        (l10n.suspendAccount, () => _askSuspension(context)),
       ],
     ];
     return PopupMenuButton<_Ask>(
-      tooltip: 'Acțiuni pentru $_name',
+      tooltip: l10n.accountActions(_name),
       onSelected: onChange,
       itemBuilder: (context) => [
         for (final (label, ask) in items)
@@ -259,19 +262,20 @@ class _UserCard extends StatelessWidget {
     );
   }
 
-  String _details() {
+  String _details(AppLocalizations l10n) {
     final role = switch (profile.role) {
-      Role.user => 'Utilizator',
-      Role.operator => 'Operator de localuri',
-      Role.admin => 'Administrator',
+      Role.user => l10n.roleUser,
+      Role.operator => l10n.roleOperator,
+      Role.admin => l10n.roleAdmin,
     };
     final state = profile.isSuspended
-        ? 'Suspendat: ${profile.suspendedReason}'
+        ? l10n.userSuspended(profile.suspendedReason ?? '')
         : switch (profile.operatorRequest) {
-            OperatorRequest.pending => 'Vrea să devină operator',
-            OperatorRequest.rejected =>
-              'Cerere respinsă: ${profile.operatorRequestReason}',
-            null => 'Activ',
+            OperatorRequest.pending => l10n.wantsToBeOperator,
+            OperatorRequest.rejected => l10n.requestRejected(
+              profile.operatorRequestReason ?? '',
+            ),
+            null => l10n.active,
           };
     return '${profile.email}\n$role · $state';
   }
@@ -279,9 +283,9 @@ class _UserCard extends StatelessWidget {
   Future<ProfileUpdate?> _confirmOperator(BuildContext context) async {
     final confirmed = await askConfirmation(
       context,
-      title: 'Îl faci pe $_name operator?',
-      message: 'Va putea adăuga localuri, care apar după ce le aprobi.',
-      action: 'Aprobă',
+      title: context.l10n.makeOperatorTitle(_name),
+      message: context.l10n.makeOperatorMessage,
+      action: context.l10n.approve,
     );
     return confirmed ? ProfileUpdate.role(Role.operator) : null;
   }
@@ -289,8 +293,8 @@ class _UserCard extends StatelessWidget {
   Future<ProfileUpdate?> _askRejection(BuildContext context) async {
     final reason = await askReason(
       context,
-      title: 'Respingi cererea lui $_name?',
-      action: 'Respinge',
+      title: context.l10n.rejectRequestTitle(_name),
+      action: context.l10n.reject,
     );
     return reason == null ? null : ProfileUpdate.rejectOperatorRequest(reason);
   }
@@ -298,11 +302,9 @@ class _UserCard extends StatelessWidget {
   Future<ProfileUpdate?> _confirmReactivation(BuildContext context) async {
     final confirmed = await askConfirmation(
       context,
-      title: 'Reactivezi contul lui $_name?',
-      message:
-          'Va putea folosi din nou contul, iar localurile lui reapar în '
-          'Explorează.',
-      action: 'Reactivează',
+      title: context.l10n.reactivateAccountTitle(_name),
+      message: context.l10n.reactivateAccountMessage,
+      action: context.l10n.reactivate,
     );
     return confirmed ? ProfileUpdate.reactivate() : null;
   }
@@ -319,8 +321,8 @@ class _UserCard extends StatelessWidget {
   Future<ProfileUpdate?> _askSuspension(BuildContext context) async {
     final reason = await askReason(
       context,
-      title: 'Suspenzi contul lui $_name?',
-      action: 'Suspendă',
+      title: context.l10n.suspendAccountTitle(_name),
+      action: context.l10n.suspend,
     );
     return reason == null ? null : ProfileUpdate.suspend(reason);
   }

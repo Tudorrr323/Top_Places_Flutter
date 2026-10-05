@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:top_places/l10n/l10n.dart';
 
 /// Asks for a first and a last name, starting from the current ones.
 /// Returns them, or null when cancelled.
@@ -42,7 +43,7 @@ Future<bool> askConfirmation(
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: const Text('Renunță'),
+          child: Text(context.l10n.cancel),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context, true),
@@ -53,9 +54,6 @@ Future<bool> askConfirmation(
   );
   return confirmed ?? false;
 }
-
-String? _required(String? value) =>
-    value == null || value.trim().isEmpty ? 'Câmp obligatoriu.' : null;
 
 class _NameDialog extends StatefulWidget {
   const _NameDialog({required this.firstName, required this.lastName});
@@ -87,8 +85,12 @@ class _NameDialogState extends State<_NameDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    String? required(String? value) =>
+        value == null || value.trim().isEmpty ? l10n.requiredField : null;
+
     return AlertDialog(
-      title: const Text('Schimbă numele'),
+      title: Text(l10n.changeName),
       content: Form(
         key: _formKey,
         child: Column(
@@ -96,13 +98,13 @@ class _NameDialogState extends State<_NameDialog> {
           children: [
             TextFormField(
               controller: _firstName,
-              decoration: const InputDecoration(labelText: 'Prenume'),
-              validator: _required,
+              decoration: InputDecoration(labelText: l10n.firstName),
+              validator: required,
             ),
             TextFormField(
               controller: _lastName,
-              decoration: const InputDecoration(labelText: 'Nume'),
-              validator: _required,
+              decoration: InputDecoration(labelText: l10n.lastName),
+              validator: required,
               onFieldSubmitted: (_) => _save(),
             ),
           ],
@@ -111,9 +113,9 @@ class _NameDialogState extends State<_NameDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Renunță'),
+          child: Text(l10n.cancel),
         ),
-        FilledButton(onPressed: _save, child: const Text('Salvează')),
+        FilledButton(onPressed: _save, child: Text(l10n.save)),
       ],
     );
   }
@@ -147,6 +149,8 @@ class _ReasonDialogState extends State<_ReasonDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
     return AlertDialog(
       title: Text(widget.title),
       content: Form(
@@ -154,21 +158,22 @@ class _ReasonDialogState extends State<_ReasonDialog> {
         child: TextFormField(
           controller: _reason,
           autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Motivul',
-            helperText: 'Îl vede și persoana în cauză.',
+          decoration: InputDecoration(
+            labelText: l10n.reasonLabel,
+            helperText: l10n.reasonHelper,
           ),
           maxLength: 300,
           maxLines: 3,
           minLines: 1,
-          validator: (value) =>
-              value == null || value.trim().isEmpty ? 'Scrie motivul.' : null,
+          validator: (value) => value == null || value.trim().isEmpty
+              ? l10n.reasonRequired
+              : null,
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Renunță'),
+          child: Text(l10n.cancel),
         ),
         FilledButton(onPressed: _confirm, child: Text(widget.action)),
       ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:top_places/l10n/l10n.dart';
 import 'package:top_places/models/place.dart';
 import 'package:top_places/services/gemini_service.dart';
 import 'package:top_places/utils/links.dart';
@@ -8,23 +9,6 @@ import 'package:top_places/widgets/place_reviews.dart';
 /// WhatsApp's green. Black text on it is easy to read (10:1); the white text
 /// of the old app was not (2:1).
 const _whatsAppGreen = Color(0xFF25D366);
-
-/// "Vibe" sentences written in advance. The old app asked Gemini for a vibe
-/// and showed one of these when the call failed. Here they are shown when
-/// Gemini can't answer (or there is no key), labelled as examples.
-const _vibeExamplesRo = [
-  'Atmosfera este electrică și primitoare, perfectă pentru o ieșire memorabilă.',
-  'Un loc cu un vibe relaxat, unde te poți deconecta complet de agitația orașului.',
-  'Energia locului te cucerește imediat, iar detaliile de design fac diferența.',
-];
-
-/// The same examples, for when the description is shown in English.
-const _vibeExamplesEn = [
-  'The atmosphere is electric and welcoming, perfect for a memorable night out.',
-  'A place with a relaxed vibe, where you can switch off from the busy city.',
-  'The energy of the place wins you over at once, and the design details '
-      'make the difference.',
-];
 
 /// Everything after the name of a place, on its page and in the sheet over
 /// the map: the WhatsApp and directions buttons, then two tabs. "Descriere"
@@ -43,9 +27,6 @@ class _PlaceTabsState extends State<PlaceTabs>
     with SingleTickerProviderStateMixin {
   late final _tabs = TabController(length: 2, vsync: this);
 
-  /// The language chosen under "Despre locație", which the vibe follows too.
-  bool _inRomanian = true;
-
   /// The reviews load the first time their tab opens, not with every place.
   bool _reviewsOpened = false;
 
@@ -59,6 +40,7 @@ class _PlaceTabsState extends State<PlaceTabs>
   Widget build(BuildContext context) {
     final place = widget.place;
     final onDescription = _tabs.index == 0;
+    final l10n = context.l10n;
 
     return SliverMainAxisGroup(
       slivers: [
@@ -76,14 +58,17 @@ class _PlaceTabsState extends State<PlaceTabs>
                     backgroundColor: _whatsAppGreen,
                     foregroundColor: Colors.black,
                   ),
-                  onPressed: () => openLink(context, whatsAppUri(place)),
+                  onPressed: () => openLink(
+                    context,
+                    whatsAppUri(l10n.bookingMessage(place.name)),
+                  ),
                   icon: const Icon(Icons.chat_outlined),
-                  label: const Text('Rezervă pe WhatsApp'),
+                  label: Text(l10n.bookOnWhatsApp),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => openLink(context, directionsUri(place)),
                   icon: const Icon(Icons.directions),
-                  label: const Text('Indicații'),
+                  label: Text(l10n.directions),
                 ),
               ],
             ),
@@ -98,9 +83,9 @@ class _PlaceTabsState extends State<PlaceTabs>
               onTap: (index) => setState(() {
                 if (index == 1) _reviewsOpened = true;
               }),
-              tabs: const [
-                Tab(text: 'Descriere'),
-                Tab(text: 'Recenzii'),
+              tabs: [
+                Tab(text: l10n.tabDescription),
+                Tab(text: l10n.tabReviews),
               ],
             ),
           ),
@@ -119,16 +104,14 @@ class _PlaceTabsState extends State<PlaceTabs>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _AboutSection(
-                        place: place,
-                        inRomanian: _inRomanian,
-                        onLanguageChanged: (inRomanian) =>
-                            setState(() => _inRomanian = inRomanian),
-                      ),
+                      _AboutSection(place: place),
                       const SizedBox(height: 16),
-                      // The vibe follows the language too: it is translated,
-                      // not lost.
-                      _VibeSection(place: place, inRomanian: _inRomanian),
+                      // In the language of the app; when it changes, the
+                      // vibe is translated, not lost.
+                      _VibeSection(
+                        place: place,
+                        inRomanian: l10n.localeName == 'ro',
+                      ),
                     ],
                   ),
                 ),
@@ -147,93 +130,42 @@ class _PlaceTabsState extends State<PlaceTabs>
   }
 }
 
-/// "Despre locație": the description in Romanian or in the original English.
+/// "Despre locație": the description, in the language of the app.
 class _AboutSection extends StatelessWidget {
-  const _AboutSection({
-    required this.place,
-    required this.inRomanian,
-    required this.onLanguageChanged,
-  });
+  const _AboutSection({required this.place});
 
   final Place place;
-  final bool inRomanian;
-  final ValueChanged<bool> onLanguageChanged;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final translation = place.descriptionRo;
-    // A record: the text and its note are chosen together.
-    final (text, note) = switch ((translation, inRomanian)) {
-      (final romanian?, true) => (
-        romanian,
-        'Traducere din engleză, inclusă în aplicație.',
-      ),
-      (_?, false) => (place.description, 'Textul original, în engleză.'),
-      // One language only, e.g. an operator's own text: nothing to tell.
-      (null, _) => (place.description, null),
-    };
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Semantics(
-                header: true,
-                child: Text(
-                  'Despre locație',
-                  style: theme.textTheme.titleMedium,
-                ),
-              ),
-            ),
-            if (translation != null)
-              SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment(
-                    value: true,
-                    label: Text('RO'),
-                    tooltip: 'În română',
-                  ),
-                  ButtonSegment(
-                    value: false,
-                    label: Text('EN'),
-                    tooltip: 'Originalul, în engleză',
-                  ),
-                ],
-                selected: {inRomanian},
-                showSelectedIcon: false,
-                onSelectionChanged: (selection) =>
-                    onLanguageChanged(selection.single),
-              ),
-          ],
+        Semantics(
+          header: true,
+          child: Text(
+            context.l10n.aboutPlace,
+            style: theme.textTheme.titleMedium,
+          ),
         ),
         const SizedBox(height: 8),
-        Text(text, style: theme.textTheme.bodyLarge),
-        if (note != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            note,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
+        Text(context.l10n.description(place), style: theme.textTheme.bodyLarge),
       ],
     );
   }
 }
 
 /// A button for a short "vibe" of the place: written by Gemini when the app
-/// has a key, otherwise one of the examples, labelled as such. It follows
-/// the language chosen for the description.
+/// has a key, otherwise one of the examples written in advance, labelled as
+/// such. It follows the language of the app.
 class _VibeSection extends StatefulWidget {
   const _VibeSection({required this.place, required this.inRomanian});
 
   final Place place;
 
-  /// The language of the vibe: the one chosen for the description.
+  /// The language of the vibe: the one of the app.
   final bool inRomanian;
 
   @override
@@ -241,11 +173,12 @@ class _VibeSection extends StatefulWidget {
 }
 
 class _VibeSectionState extends State<_VibeSection> {
-  /// The example on screen, by its number in both lists, or null.
+  /// The example on screen, by its number, or null.
   int? _example;
 
-  /// Why an example is shown: there is no key, or Gemini did not answer.
-  String _exampleNote = '';
+  /// True when the example is shown because Gemini did not answer; false
+  /// when there is no key.
+  bool _aiDown = false;
 
   /// The vibe from Gemini in the languages it has been shown in, by
   /// language (true for Romanian). Empty when there is none.
@@ -271,7 +204,7 @@ class _VibeSectionState extends State<_VibeSection> {
   Future<void> _showVibe() async {
     final gemini = context.read<GeminiService?>();
     if (gemini == null) {
-      _showExample('Exemplu scris dinainte, nu generat de AI.');
+      _showExample(aiDown: false);
       return;
     }
     final inRomanian = widget.inRomanian;
@@ -311,7 +244,7 @@ class _VibeSectionState extends State<_VibeSection> {
       if (widget.inRomanian != inRomanian) _translate();
     } on GeminiException {
       if (!mounted || number != _vibeNumber) return;
-      _showExample('Exemplu scris dinainte: AI-ul nu răspunde acum.');
+      _showExample(aiDown: true);
     }
   }
 
@@ -353,13 +286,13 @@ class _VibeSectionState extends State<_VibeSection> {
     }
   }
 
-  void _showExample(String note) {
+  void _showExample({required bool aiDown}) {
     setState(() {
       // Drops a late answer about an AI vibe, if one is on its way.
       _vibeNumber++;
       _aiText.clear();
-      _example = ((_example ?? -1) + 1) % _vibeExamplesRo.length;
-      _exampleNote = note;
+      _example = ((_example ?? -1) + 1) % 3;
+      _aiDown = aiDown;
       _loading = false;
     });
   }
@@ -367,31 +300,29 @@ class _VibeSectionState extends State<_VibeSection> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     final withAi = context.watch<GeminiService?>() != null;
     final inRomanian = widget.inRomanian;
     final example = _example;
     // While a translation is on its way, the other language stays on screen.
     final (String? text, String note) = example != null
         ? (
-            (inRomanian ? _vibeExamplesRo : _vibeExamplesEn)[example],
-            _exampleNote,
+            // Written in advance in both languages, so always in the right
+            // one.
+            [l10n.vibeExample1, l10n.vibeExample2, l10n.vibeExample3][example],
+            _aiDown ? l10n.vibeExampleAiDown : l10n.vibeExampleNoAi,
           )
         : switch ((_aiText[inRomanian], _aiText[!inRomanian])) {
-            (final String text, _) => (
-              text,
-              'Generat cu Gemini. Poate conține greșeli.',
-            ),
+            (final String text, _) => (text, l10n.aiNote),
             (null, final String other) => (
               other,
-              _translationFailed
-                  ? 'Generat cu Gemini. Nu l-am putut traduce acum.'
-                  : 'Se traduce…',
+              _translationFailed ? l10n.vibeNotTranslated : l10n.translating,
             ),
             _ => (null, ''),
           };
     final label = text == null
-        ? (withAi ? 'Generează un vibe cu AI' : 'Arată un exemplu de vibe')
-        : (withAi ? 'Alt vibe' : 'Alt exemplu');
+        ? (withAi ? l10n.vibeGenerate : l10n.vibeShowExample)
+        : (withAi ? l10n.vibeAnother : l10n.vibeAnotherExample);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

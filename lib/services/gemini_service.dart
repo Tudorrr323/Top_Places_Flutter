@@ -9,6 +9,8 @@ const geminiApiKey = String.fromEnvironment('GEMINI_API_KEY');
 
 /// A call to Gemini that failed: no internet, no answer in time, the free
 /// limit reached (429), a refused key, or an answer in an unexpected shape.
+/// [message] is for the logs; the screens say what happened in their own
+/// words, in the language of the app.
 class GeminiException implements Exception {
   const GeminiException(this.message, {this.statusCode});
 
@@ -75,14 +77,14 @@ class GeminiService {
           )
           .timeout(timeout);
     } on TimeoutException {
-      throw const GeminiException('Gemini nu a răspuns la timp.');
+      throw const GeminiException('Gemini did not answer in time.');
     } on http.ClientException catch (error) {
-      throw GeminiException('Fără conexiune: ${error.message}');
+      throw GeminiException('No connection: ${error.message}');
     }
 
     if (response.statusCode != 200) {
       throw GeminiException(
-        'Gemini a refuzat cererea.',
+        'Gemini refused the request.',
         statusCode: response.statusCode,
       );
     }
@@ -101,6 +103,6 @@ class GeminiService {
     } on FormatException {
       // Not JSON at all: handled below, like any other unexpected answer.
     }
-    throw const GeminiException('Gemini a trimis un răspuns neașteptat.');
+    throw const GeminiException('Gemini sent an unexpected answer.');
   }
 }

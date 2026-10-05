@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:top_places/l10n/l10n.dart';
 import 'package:top_places/models/profile.dart';
 import 'package:top_places/models/rating.dart';
 import 'package:top_places/services/place_service.dart';
@@ -48,21 +49,22 @@ class _RatingsModerationScreenState extends State<RatingsModerationScreen> {
     final service = context.read<PlaceService?>()!;
     final repository = context.read<PlacesRepository>();
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
     try {
       await change(service);
       await repository.refresh();
       if (mounted) _reload();
     } on PlaceException catch (error) {
-      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+      messenger.showSnackBar(SnackBar(content: Text(l10n.placeError(error))));
     }
   }
 
   Future<void> _accept(Rating rating) async {
     final confirmed = await askConfirmation(
       context,
-      title: 'Accepți recenzia lui ${rating.author}?',
-      message: 'Apare pe pagina localului și intră în rating.',
-      action: 'Acceptă',
+      title: context.l10n.acceptReviewTitle(rating.author),
+      message: context.l10n.acceptReviewMessage,
+      action: context.l10n.accept,
     );
     if (!confirmed) return;
     await _apply(
@@ -73,8 +75,8 @@ class _RatingsModerationScreenState extends State<RatingsModerationScreen> {
   Future<void> _reject(Rating rating) async {
     final reason = await askReason(
       context,
-      title: 'Respingi recenzia lui ${rating.author}?',
-      action: 'Respinge',
+      title: context.l10n.rejectReviewTitle(rating.author),
+      action: context.l10n.reject,
     );
     if (reason == null) return;
     await _apply(
@@ -85,9 +87,9 @@ class _RatingsModerationScreenState extends State<RatingsModerationScreen> {
   Future<void> _delete(Rating rating) async {
     final confirmed = await askConfirmation(
       context,
-      title: 'Ștergi recenzia lui ${rating.author}?',
-      message: 'Nota și mesajul dispar definitiv.',
-      action: 'Șterge',
+      title: context.l10n.deleteOthersReviewTitle(rating.author),
+      message: context.l10n.deleteOthersReviewMessage,
+      action: context.l10n.delete,
     );
     if (!confirmed) return;
     await _apply((service) => service.deleteRating(rating));
@@ -99,7 +101,7 @@ class _RatingsModerationScreenState extends State<RatingsModerationScreen> {
         context.watch<AccountViewModel>().profile?.role == Role.admin;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Recenzii')),
+      appBar: AppBar(title: Text(context.l10n.reviewsTitle)),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
@@ -109,7 +111,7 @@ class _RatingsModerationScreenState extends State<RatingsModerationScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 child: ListSearchField(
-                  hint: 'Caută după local, autor sau mesaj',
+                  hint: context.l10n.searchReviews,
                   onChanged: (query) => setState(() => _query = query),
                 ),
               ),
@@ -121,7 +123,7 @@ class _RatingsModerationScreenState extends State<RatingsModerationScreen> {
                   children: [
                     for (final status in RatingStatus.values)
                       ChoiceChip(
-                        label: Text(_filterLabel(status)),
+                        label: Text(_filterLabel(context.l10n, status)),
                         selected: _shown == status,
                         onSelected: (_) => setState(() => _shown = status),
                       ),
@@ -136,7 +138,7 @@ class _RatingsModerationScreenState extends State<RatingsModerationScreen> {
                       return const Center(child: CircularProgressIndicator());
                     }
                     if (snapshot.error case final error?) {
-                      return Center(child: Text(error.toString()));
+                      return Center(child: Text(context.l10n.error(error)));
                     }
                     final ratings = [
                       for (final rating in snapshot.data!)
@@ -149,7 +151,7 @@ class _RatingsModerationScreenState extends State<RatingsModerationScreen> {
                           rating,
                     ];
                     if (ratings.isEmpty) {
-                      return const Center(child: Text('Nicio recenzie aici.'));
+                      return Center(child: Text(context.l10n.noReviewsHere));
                     }
                     return ListView(
                       padding: const EdgeInsets.all(16),
@@ -175,28 +177,30 @@ class _RatingsModerationScreenState extends State<RatingsModerationScreen> {
   List<Widget> _actionsFor(Rating rating, {required bool isAdmin}) {
     Widget button(String label, VoidCallback onPressed) =>
         TextButton(onPressed: onPressed, child: Text(label));
+    final l10n = context.l10n;
 
     return [
-      if (isAdmin) button('Șterge', () => _delete(rating)),
+      if (isAdmin) button(l10n.delete, () => _delete(rating)),
       ...switch (rating.status) {
         RatingStatus.pending => [
-          button('Respinge', () => _reject(rating)),
+          button(l10n.reject, () => _reject(rating)),
           FilledButton(
             onPressed: () => _accept(rating),
-            child: const Text('Acceptă'),
+            child: Text(l10n.accept),
           ),
         ],
-        RatingStatus.approved => [button('Respinge', () => _reject(rating))],
-        RatingStatus.rejected => [button('Acceptă', () => _accept(rating))],
+        RatingStatus.approved => [button(l10n.reject, () => _reject(rating))],
+        RatingStatus.rejected => [button(l10n.accept, () => _accept(rating))],
       },
     ];
   }
 
-  static String _filterLabel(RatingStatus status) => switch (status) {
-    RatingStatus.pending => 'De verificat',
-    RatingStatus.approved => 'Acceptate',
-    RatingStatus.rejected => 'Respinse',
-  };
+  static String _filterLabel(AppLocalizations l10n, RatingStatus status) =>
+      switch (status) {
+        RatingStatus.pending => l10n.filterToCheck,
+        RatingStatus.approved => l10n.filterAccepted,
+        RatingStatus.rejected => l10n.filterRejected,
+      };
 }
 
 /// One review in the list, with its decisions under it.
@@ -210,6 +214,7 @@ class _RatingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final reason = rating.statusReason;
     final comment = rating.comment;
+    final l10n = context.l10n;
 
     return Card(
       child: Padding(
@@ -224,15 +229,15 @@ class _RatingCard extends StatelessWidget {
             Text(
               [
                 rating.author,
-                Rating.starsText(rating.stars),
-                if (rating.dateText.isNotEmpty) rating.dateText,
+                l10n.stars(rating.stars),
+                if (rating.updatedAt != null) l10n.date(rating.updatedAt),
               ].join(' · '),
             ),
             if (comment != null) ...[
               const SizedBox(height: 4),
-              Text('„$comment”'),
+              Text(l10n.quoted(comment)),
             ],
-            if (reason != null) Text('Motiv: $reason'),
+            if (reason != null) Text(l10n.reason(reason)),
             const SizedBox(height: 4),
             Align(
               alignment: Alignment.centerRight,

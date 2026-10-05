@@ -25,6 +25,7 @@ const steps = [
   '004_ratings.sql',
   '005_reviews.sql',
   '006_admin_reviews.sql',
+  '007_bilingual_places.sql',
 ];
 
 // A new database with the first [count] steps run.
@@ -99,7 +100,7 @@ async function main() {
   check((await as(ana, 'select * from public.profiles where id = $1', [ion])).rows.length === 0,
     "cannot read someone else's profile");
   check(await fails(as(ana,
-    "insert into public.places (name, address, city, lat, lng, description) values ('Test', 'Str. A, 1', 'Iași', 47.1, 27.5, 'O descriere destul de lungă.')")),
+    "insert into public.places (name, address, city, lat, lng, description, description_ro) values ('Test', 'Str. A, 1', 'Iași', 47.1, 27.5, 'A description long enough.', 'O descriere destul de lungă.')")),
     'cannot add places');
   await as(ana, "update public.profiles set operator_request = 'pending' where id = $1", [ana]);
   row = (await as(ana, 'select operator_request from public.profiles')).rows[0];
@@ -121,8 +122,8 @@ async function main() {
 
   console.log('Operator');
   const inserted = await as(ana,
-    "insert into public.places (name, address, city, lat, lng, description, status, rating) " +
-    "values ('Ceainăria Ana', 'Str. Lăpușneanu, Nr. 3, Iași', 'Iași', 47.16, 27.58, 'Ceai bun și liniște, aproape de centru.', 'approved', 5) " +
+    "insert into public.places (name, address, city, lat, lng, description, description_ro, status, rating) " +
+    "values ('Ceainăria Ana', 'Str. Lăpușneanu, Nr. 3, Iași', 'Iași', 47.16, 27.58, 'Good tea and quiet, near the centre.', 'Ceai bun și liniște, aproape de centru.', 'approved', 5) " +
     'returning id, status, rating, owner_id');
   const place = inserted.rows[0];
   check(place.status === 'pending' && place.rating === null && place.owner_id === ana,
@@ -167,7 +168,7 @@ async function main() {
   check((await as(ana, "update public.places set name = 'Y' where id = $1 returning id", [place.id])).rows.length === 0,
     'she cannot edit it');
   check(await fails(as(ana,
-    "insert into public.places (name, address, city, lat, lng, description) values ('Alt loc', 'Str. B, 2', 'Iași', 47.1, 27.5, 'O descriere destul de lungă.')")),
+    "insert into public.places (name, address, city, lat, lng, description, description_ro) values ('Alt loc', 'Str. B, 2', 'Iași', 47.1, 27.5, 'A description long enough.', 'O descriere destul de lungă.')")),
     'she cannot add places');
   check((await as(ana, "update public.profiles set first_name = 'Z' returning id")).rows.length === 0,
     'she cannot edit her profile');
@@ -278,8 +279,8 @@ async function main() {
     'visitors who are not signed in cannot review');
   check(await fails(rate(ana, place.id, 5)), 'an operator cannot review her own place');
   const waiting = (await as(ana,
-    "insert into public.places (name, address, city, lat, lng, description) " +
-    "values ('Cofetăria Ana', 'Str. Cuza Vodă, Nr. 1, Iași', 'Iași', 47.16, 27.58, 'Prăjituri de casă și cafea bună.') " +
+    "insert into public.places (name, address, city, lat, lng, description, description_ro) " +
+    "values ('Cofetăria Ana', 'Str. Cuza Vodă, Nr. 1, Iași', 'Iași', 47.16, 27.58, 'Home-made cakes and good coffee.', 'Prăjituri de casă și cafea bună.') " +
     'returning id')).rows[0];
   check(await fails(rate(dan, waiting.id, 5)), 'a place under review cannot be reviewed');
   check(await fails(as(dan, "insert into public.ratings (place_id, user_id, stars) values ('burger-shack', $1, 5)", [ion])),
@@ -339,7 +340,7 @@ async function main() {
   check((await statusOf(dan, 'burger-shack')) === 'pending', "a user's review still waits");
 
   console.log('Step 6 on a database with reviews');
-  const old = await newDatabase(steps.length - 1);
+  const old = await newDatabase(steps.indexOf('006_admin_reviews.sql'));
   const oldAdmin = (await old.query(
     "insert into auth.users (email, raw_user_meta_data) values ('sef@test.ro', '{}') returning id")).rows[0].id;
   await old.query("update public.profiles set role = 'admin' where id = $1", [oldAdmin]);
@@ -357,10 +358,31 @@ async function main() {
   await old.exec('reset role');
   // Then step 6, run in the SQL Editor: no one signed in.
   await old.query("select set_config('request.jwt.claims', '', false)");
-  await old.exec(fs.readFileSync(path.join(__dirname, '..', steps[steps.length - 1]), 'utf8'));
+  await old.exec(fs.readFileSync(path.join(__dirname, '..', '006_admin_reviews.sql'), 'utf8'));
   row = (await old.query("select r.status, p.rating_count from public.ratings r join public.places p on p.id = r.place_id")).rows;
   check(row.length === 2 && row.every((review) => review.status === 'approved' && review.rating_count === 1),
     "an admin's reviews that were waiting become public, and count");
+
+  console.log('Two languages');
+  const addPlace = (description, descriptionRo) => as(ana,
+    'insert into public.places (name, address, city, lat, lng, description, description_ro) ' +
+    "values ('Bistro Ana', 'Str. Arcu, Nr. 5, Iași', 'Iași', 47.16, 27.58, $1, $2) returning id",
+    [description, descriptionRo]);
+  check(await fails(addPlace('Good food and a quiet terrace.', null)), 'a place needs the Romanian description');
+  check(await fails(addPlace('Good food and a quiet terrace.', '   ')), 'not just spaces');
+  check(await fails(addPlace('Good food and a quiet terrace.', 'Scurt')), 'with the same length as the English one');
+  check((await addPlace('Good food and a quiet terrace.', 'Mâncare bună și o terasă liniștită.')).rows.length === 1,
+    'with both, it is added');
+
+  console.log('Step 7 on a database with places in one language');
+  const oneLanguage = await newDatabase(steps.indexOf('007_bilingual_places.sql'));
+  await oneLanguage.query(
+    "insert into public.places (id, name, address, city, lat, lng, description, status) " +
+    "values ('local-test', 'Local Test', 'Str. Test, Nr. 1, Iași', 'Iași', 47.16, 27.58, 'Descriere local test', 'approved')");
+  await oneLanguage.exec(fs.readFileSync(path.join(__dirname, '..', '007_bilingual_places.sql'), 'utf8'));
+  row = (await oneLanguage.query("select description, description_ro from public.places where id = 'local-test'")).rows[0];
+  check(row.description_ro === 'Descriere local test' && row.description === 'Descriere local test',
+    'its one description becomes the Romanian one too');
 
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);

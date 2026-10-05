@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:top_places/l10n/l10n.dart';
 import 'package:top_places/utils/text_normalize.dart';
 
 /// True when [query] appears in one of [texts], whatever the case and the
@@ -48,7 +49,7 @@ class _ListSearchFieldState extends State<ListSearchField> {
       trailing: [
         if (_controller.text.isNotEmpty)
           IconButton(
-            tooltip: 'Șterge căutarea',
+            tooltip: context.l10n.clearSearch,
             icon: const Icon(Icons.close),
             onPressed: () {
               _controller.clear();

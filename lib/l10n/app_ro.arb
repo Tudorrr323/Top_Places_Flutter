@@ -1,0 +1,671 @@
+{
+  "@@locale": "ro",
+  "appTitle": "Top Places",
+  "tabExplore": "Explorează",
+  "tabAssistant": "Asistent",
+  "tabProfile": "Profil",
+  "notFoundTitle": "Pagină inexistentă",
+  "notFoundMessage": "Nu am găsit pagina căutată.",
+  "notFoundBack": "Înapoi la Explorează",
+  "filtersTitle": "Filtrează & Sortează",
+  "filtersCity": "Oraș",
+  "filtersAllCities": "Toate",
+  "filtersMinRating": "Rating minim",
+  "filtersAnyRating": "Oricare",
+  "filtersSort": "Sortare",
+  "sortRecommended": "Recomandat",
+  "sortRatingDown": "Rating ↓",
+  "sortRatingUp": "Rating ↑",
+  "sortName": "Nume (A-Z)",
+  "filtersReset": "Resetează",
+  "filtersApply": "Aplică filtre",
+  "cancel": "Renunță",
+  "save": "Salvează",
+  "requiredField": "Câmp obligatoriu.",
+  "changeName": "Schimbă numele",
+  "firstName": "Prenume",
+  "lastName": "Nume",
+  "reasonLabel": "Motivul",
+  "reasonHelper": "Îl vede și persoana în cauză.",
+  "reasonRequired": "Scrie motivul.",
+  "bookingMessage": "Rezervare la {place}",
+  "@bookingMessage": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "linkFailed": "Nu am putut deschide linkul.",
+  "clearSearch": "Șterge căutarea",
+  "ratingNew": "Nou",
+  "ratingNewLabel": "local nou",
+  "ratingStarsLabel": "{rating} stele",
+  "@ratingStarsLabel": {
+    "placeholders": {
+      "rating": {
+        "type": "String"
+      }
+    }
+  },
+  "stars": "{count, plural, =1{1 stea} other{{count} stele}}",
+  "@stars": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "results": "{count, plural, =1{1 rezultat} few{{count} rezultate} other{{count} de rezultate}}",
+  "@results": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "reviewCount": "{count, plural, =1{1 recenzie} few{{count} recenzii} other{{count} de recenzii}}",
+  "@reviewCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "placeCount": "{count, plural, =1{1 local} few{{count} localuri} other{{count} de localuri}}",
+  "@placeCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "searchHint": "Caută locații sau orașe...",
+  "filterTooltip": "Filtrează și sortează",
+  "showList": "Arată lista",
+  "showMap": "Arată harta",
+  "placesTitle": "Locații",
+  "filtersActive": "Filtre active",
+  "noPlaces": "Nu am găsit locații.",
+  "suggestionRated": "{city} · ★ {rating}",
+  "@suggestionRated": {
+    "placeholders": {
+      "city": {
+        "type": "String"
+      },
+      "rating": {
+        "type": "String"
+      }
+    }
+  },
+  "suggestionNew": "{city} · Nou",
+  "@suggestionNew": {
+    "placeholders": {
+      "city": {
+        "type": "String"
+      }
+    }
+  },
+  "clusterLabel": "{places} aici. Apasă ca să apropii harta.",
+  "@clusterLabel": {
+    "placeholders": {
+      "places": {
+        "type": "String"
+      }
+    }
+  },
+  "locationServiceOff": "Localizarea e oprită pe dispozitiv. Pornește-o și încearcă din nou.",
+  "locationDenied": "Fără permisiunea de localizare nu te pot arăta pe hartă.",
+  "locationDeniedForever": "Ai refuzat localizarea pentru Top Places. O poți permite din setările aplicației.",
+  "locationBlockedByBrowser": "Browserul blochează localizarea. O poți permite din setările site-ului.",
+  "locationAccuracyOff": "Localizarea precisă a rămas oprită. Apasă din nou și accept-o când telefonul te întreabă.",
+  "locationNotFound": "Nu am putut afla unde ești. Încearcă din nou.",
+  "settings": "Setări",
+  "myLocationTooltip": "Arată-mi locația",
+  "myLocationLabel": "Locația ta",
+  "shrink": "Micșorează",
+  "allDetails": "Toate detaliile",
+  "newPlaceNoReviews": "Local nou, fără recenzii încă",
+  "bookOnWhatsApp": "Rezervă pe WhatsApp",
+  "directions": "Indicații",
+  "tabDescription": "Descriere",
+  "tabReviews": "Recenzii",
+  "aboutPlace": "Despre locație",
+  "vibeExample1": "Atmosfera este electrică și primitoare, perfectă pentru o ieșire memorabilă.",
+  "vibeExample2": "Un loc cu un vibe relaxat, unde te poți deconecta complet de agitația orașului.",
+  "vibeExample3": "Energia locului te cucerește imediat, iar detaliile de design fac diferența.",
+  "vibeExampleNoAi": "Exemplu scris dinainte, nu generat de AI.",
+  "vibeExampleAiDown": "Exemplu scris dinainte: AI-ul nu răspunde acum.",
+  "aiNote": "Generat cu Gemini. Poate conține greșeli.",
+  "vibeNotTranslated": "Generat cu Gemini. Nu l-am putut traduce acum.",
+  "translating": "Se traduce…",
+  "vibeGenerate": "Generează un vibe cu AI",
+  "vibeShowExample": "Arată un exemplu de vibe",
+  "vibeAnother": "Alt vibe",
+  "vibeAnotherExample": "Alt exemplu",
+  "reviewsNeedSupabase": "Recenziile se văd doar când aplicația e conectată la Supabase.",
+  "ratingFromOldApp": "Ratingul vine din aplicația originală, până la primele recenzii.",
+  "noReviewsYet": "Nicio recenzie încă.",
+  "ratingFromOneReview": "Ratingul vine dintr-o singură recenzie.",
+  "ratingAverage": "Ratingul e media celor {count, plural, few{{count} recenzii} other{{count} de recenzii}}.",
+  "@ratingAverage": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "reviewSignInFirst": "Intră în cont, din tab-ul Profil, ca să scrii o recenzie.",
+  "reviewSuspended": "Contul tău e suspendat: nu poți scrie recenzii.",
+  "reviewOwnPlace": "Nu poți scrie recenzii la propriul local.",
+  "reviewAcceptedByAdmin": "Apare după ce o acceptă un administrator.",
+  "reviewAcceptedByOperator": "Apare după ce o acceptă operatorul localului.",
+  "reviewAdminAtOnce": "Ca administrator, recenzia ta apare imediat.",
+  "reviewPublished": "Recenzia ta a fost publicată.",
+  "reviewSentWaiting": "Recenzia ta a fost trimisă și e în așteptare.",
+  "deleteReviewTitle": "Ștergi recenzia?",
+  "deleteReviewMessage": "Nota și mesajul tău dispar de pe pagina localului.",
+  "delete": "Șterge",
+  "yourReview": "Recenzia ta",
+  "reviewPending": "În așteptare",
+  "reviewPendingExplanation": "{whenAccepted} Până atunci o vezi doar tu.",
+  "@reviewPendingExplanation": {
+    "placeholders": {
+      "whenAccepted": {
+        "type": "String"
+      }
+    }
+  },
+  "reviewApproved": "Publicată",
+  "reviewApprovedExplanation": "O vede oricine deschide localul.",
+  "reviewRejected": "Respinsă",
+  "reviewRejectedExplanation": "Motiv: {reason}. O poți modifica și trimite din nou.",
+  "@reviewRejectedExplanation": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteReview": "Șterge recenzia",
+  "editReview": "Modifică",
+  "reviewEditIntro": "Schimbă ce trebuie, apoi trimite din nou. {whenPublic}",
+  "@reviewEditIntro": {
+    "placeholders": {
+      "whenPublic": {
+        "type": "String"
+      }
+    }
+  },
+  "reviewNewIntro": "Alege stelele și, dacă vrei, scrie câteva cuvinte. {whenPublic}",
+  "@reviewNewIntro": {
+    "placeholders": {
+      "whenPublic": {
+        "type": "String"
+      }
+    }
+  },
+  "reviewMessage": "Mesaj (opțional)",
+  "sendAgain": "Trimite din nou",
+  "sendReview": "Trimite recenzia",
+  "othersSay": "Ce spun ceilalți",
+  "noPublishedReviews": "Nicio recenzie publicată încă.",
+  "errorSignInAgain": "Intră din nou în cont.",
+  "errorWrongCredentials": "Email sau parolă greșite.",
+  "errorEmailNotConfirmed": "Încă nu ți-ai confirmat emailul. Deschide linkul din emailul primit, apoi încearcă din nou.",
+  "errorTooManyEmails": "S-au trimis prea multe emailuri. Încearcă din nou peste o oră.",
+  "errorWeakPassword": "Parola e prea slabă. Alege una mai lungă.",
+  "errorInvalidEmail": "Adresa de email nu e acceptată.",
+  "errorEmailTaken": "Există deja un cont cu acest email.",
+  "errorNotSaved": "Nu am putut salva: {detail}",
+  "@errorNotSaved": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errorFailed": "Nu a mers: {detail}",
+  "@errorFailed": {
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "errorOffline": "Nu mă pot conecta. Verifică internetul și încearcă din nou.",
+  "accountsUnavailable": "Conturile nu sunt disponibile în această versiune a aplicației: lipsește configurarea Supabase.",
+  "signIn": "Intră în cont",
+  "newAccount": "Cont nou",
+  "confirmationSent": "Ți-am trimis un email la {email}. Deschide linkul din el, apoi intră în cont aici. Dacă nu îl vezi, caută și în Spam.",
+  "@confirmationSent": {
+    "placeholders": {
+      "email": {
+        "type": "String"
+      }
+    }
+  },
+  "email": "Email",
+  "invalidEmail": "Scrie o adresă de email validă.",
+  "password": "Parolă",
+  "passwordTooShort": "Parola trebuie să aibă cel puțin 8 caractere.",
+  "repeatPassword": "Repetă parola",
+  "passwordsDiffer": "Parolele nu sunt la fel.",
+  "createAccount": "Creează contul",
+  "hidePassword": "Ascunde parola",
+  "showPassword": "Arată parola",
+  "accountSuspended": "Contul tău e suspendat",
+  "accountSuspendedDetails": "Motiv: {reason}\nPoți vedea localurile, dar nu poți face modificări.",
+  "@accountSuspendedDetails": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "noName": "Fără nume",
+  "signOut": "Ieși din cont",
+  "reviewsAdmin": "Recenzii: acceptări și ștergeri",
+  "reviewsOperator": "Recenziile localurilor mele",
+  "administration": "Administrare",
+  "adminPlaces": "Localuri: aprobări și suspendări",
+  "adminUsers": "Utilizatori și operatori",
+  "operatorRequestPending": "Ai cerut să devii operator. Un administrator îți va răspunde.",
+  "operatorRequestRejected": "Cererea ta de a deveni operator a fost respinsă. Motiv: {reason}",
+  "@operatorRequestRejected": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "sendRequestAgain": "Trimite din nou cererea",
+  "wantToAddPlaces": "Vreau să adaug localuri",
+  "roleUser": "Utilizator",
+  "roleOperator": "Operator de localuri",
+  "roleAdmin": "Administrator",
+  "language": "Limba aplicației",
+  "errorSignInToReview": "Intră în cont ca să scrii o recenzie.",
+  "errorCannotDeleteReview": "Nu ai voie să ștergi această recenzie.",
+  "errorInvalidFields": "Unele câmpuri nu sunt valide. Verifică-le și încearcă din nou.",
+  "errorNotAllowed": "Nu ai voie să faci această modificare.",
+  "myPlaces": "Localurile mele",
+  "searchMyPlaces": "Caută în localurile tale",
+  "noOwnPlaces": "Încă nu ai adăugat niciun local.",
+  "noMatchingPlaces": "Niciun local nu se potrivește căutării.",
+  "editPlace": "Editează {name}",
+  "@editPlace": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "addPlace": "Adaugă un local",
+  "placePending": "În așteptarea aprobării",
+  "placeApproved": "Aprobat: apare în Explorează",
+  "placeRejected": "Respins: {reason}",
+  "@placeRejected": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "placeSuspended": "Suspendat: {reason}",
+  "@placeSuspended": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "reactivatePlaceTitle": "Reactivezi „{name}”?",
+  "@reactivatePlaceTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "approvePlaceTitle": "Aprobi „{name}”?",
+  "@approvePlaceTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "reactivatePlaceMessage": "Localul apare din nou în Explorează.",
+  "approvePlaceMessage": "Localul apare în Explorează pentru toată lumea. Ratingul îl vor da cei care îl vizitează.",
+  "reactivate": "Reactivează",
+  "approve": "Aprobă",
+  "rejectPlaceTitle": "Respingi „{name}”?",
+  "@rejectPlaceTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "reject": "Respinge",
+  "suspendPlaceTitle": "Suspenzi „{name}”?",
+  "@suspendPlaceTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "suspend": "Suspendă",
+  "adminPlacesTitle": "Localuri",
+  "searchPlacesAdmin": "Caută după nume, oraș sau adresă",
+  "noPlacesHere": "Niciun local aici.",
+  "edit": "Editează",
+  "filterToCheck": "De verificat",
+  "filterPublic": "Publice",
+  "filterRejected": "Respinse",
+  "filterSuspended": "Suspendate",
+  "noRating": "fără rating",
+  "reason": "Motiv: {reason}",
+  "@reason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "adminUsersTitle": "Utilizatori",
+  "searchUsers": "Caută după nume sau email",
+  "filterRequests": "Cereri de operator",
+  "filterSuspendedUsers": "Suspendați",
+  "filterAllUsers": "Toți",
+  "noAccountsHere": "Niciun cont aici.",
+  "makeUser": "Fă-l utilizator",
+  "makeOperator": "Fă-l operator",
+  "makeAdmin": "Fă-l administrator",
+  "suspendAccount": "Suspendă contul",
+  "accountActions": "Acțiuni pentru {name}",
+  "@accountActions": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "userSuspended": "Suspendat: {reason}",
+  "@userSuspended": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "wantsToBeOperator": "Vrea să devină operator",
+  "requestRejected": "Cerere respinsă: {reason}",
+  "@requestRejected": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "active": "Activ",
+  "makeOperatorTitle": "Îl faci pe {name} operator?",
+  "@makeOperatorTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "makeOperatorMessage": "Va putea adăuga localuri, care apar după ce le aprobi.",
+  "rejectRequestTitle": "Respingi cererea lui {name}?",
+  "@rejectRequestTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "reactivateAccountTitle": "Reactivezi contul lui {name}?",
+  "@reactivateAccountTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "reactivateAccountMessage": "Va putea folosi din nou contul, iar localurile lui reapar în Explorează.",
+  "suspendAccountTitle": "Suspenzi contul lui {name}?",
+  "@suspendAccountTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "acceptReviewTitle": "Accepți recenzia lui {author}?",
+  "@acceptReviewTitle": {
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "acceptReviewMessage": "Apare pe pagina localului și intră în rating.",
+  "accept": "Acceptă",
+  "rejectReviewTitle": "Respingi recenzia lui {author}?",
+  "@rejectReviewTitle": {
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteOthersReviewTitle": "Ștergi recenzia lui {author}?",
+  "@deleteOthersReviewTitle": {
+    "placeholders": {
+      "author": {
+        "type": "String"
+      }
+    }
+  },
+  "deleteOthersReviewMessage": "Nota și mesajul dispar definitiv.",
+  "reviewsTitle": "Recenzii",
+  "searchReviews": "Caută după local, autor sau mesaj",
+  "noReviewsHere": "Nicio recenzie aici.",
+  "filterAccepted": "Acceptate",
+  "quoted": "„{text}”",
+  "@quoted": {
+    "placeholders": {
+      "text": {
+        "type": "String"
+      }
+    }
+  },
+  "newPlaceTitle": "Local nou",
+  "editPlaceTitle": "Editează localul",
+  "editGoesToReview": "După ce salvezi, localul intră din nou în verificare și nu apare în Explorează până nu îl aprobă un administrator.",
+  "placeName": "Nume",
+  "address": "Adresă",
+  "city": "Oraș",
+  "chooseCity": "Alege orașul.",
+  "tapMapToChoose": "Atinge harta ca să alegi locul.",
+  "mustBeInRomania": "Locul trebuie să fie în România.",
+  "photoLink": "Link către o poză (opțional)",
+  "linkMustBeHttps": "Linkul trebuie să înceapă cu https://",
+  "descriptionRo": "Descriere în română",
+  "descriptionEn": "Descriere în engleză",
+  "descriptionHint": "Ce face localul special?",
+  "translateToEnglish": "Tradu în engleză",
+  "translateToRomanian": "Tradu în română",
+  "translateNothingYet": "Scrie descrierea într-o limbă, iar butonul o traduce în cealaltă.",
+  "translateNeedsGemini": "Traducerea automată are nevoie de cheia Gemini.",
+  "translateFailed": "Nu am putut traduce acum. Încearcă din nou.",
+  "sendForApproval": "Trimite spre aprobare",
+  "saveAndSendForApproval": "Salvează și trimite spre aprobare",
+  "tooShort": "Prea scurt: cel puțin {min} caractere.",
+  "@tooShort": {
+    "placeholders": {
+      "min": {
+        "type": "int"
+      }
+    }
+  },
+  "tooLong": "Prea lung: cel mult {max} caractere.",
+  "@tooLong": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "positionOnMap": "Poziția pe hartă",
+  "tapMapWherePlaceIs": "Atinge harta în locul unde este localul.",
+  "positionChosen": "Poziție aleasă. Atinge din nou ca s-o schimbi.",
+  "botNotUnderstood": "Nu am înțeles întrebarea. Poți reformula, te rog? Pot răspunde la întrebări despre localuri, rezervări sau funcțiile aplicației.",
+  "botRecommend": "Pentru a găsi localuri, folosește pagina „Explorează”. Poți căuta după nume sau oraș, iar filtrele sortează după rating.",
+  "botBooking": "Poți face o rezervare din pagina unui local, cu butonul „Rezervă pe WhatsApp”.",
+  "botMapList": "Pe telefon, butonul de lângă căutare comută între listă și hartă. Pe un ecran lat le vezi pe amândouă.",
+  "botGreeting": "Salut! Cu ce te pot ajuta astăzi? Poți să mă întrebi despre localuri sau despre cum funcționează aplicația.",
+  "botWhichCityDrink": "Sigur! În ce oraș ai vrea să bei ceva?",
+  "botWhichCityFood": "Sigur! În ce oraș ai vrea să mănânci?",
+  "botFound": "Am găsit „{name}”.",
+  "@botFound": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "botFoundMatching": "Am găsit „{name}”. Pare a fi ce căutai ({criteria}).",
+  "@botFoundMatching": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "criteria": {
+        "type": "String"
+      }
+    }
+  },
+  "botNothingMatching": "Din păcate, nu am găsit niciun local care să corespundă criteriilor tale: {criteria}.",
+  "@botNothingMatching": {
+    "placeholders": {
+      "criteria": {
+        "type": "String"
+      }
+    }
+  },
+  "botNothingNamed": "Nu am găsit niciun local care să corespundă căutării „{name}”.",
+  "@botNothingNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "botCriterionDrink": "baruri/cafenele",
+  "botCriterionFood": "restaurante",
+  "botCriterionCity": "din {city}",
+  "@botCriterionCity": {
+    "placeholders": {
+      "city": {
+        "type": "String"
+      }
+    }
+  },
+  "botCriterionItem": "care servește {item}",
+  "@botCriterionItem": {
+    "placeholders": {
+      "item": {
+        "type": "String"
+      }
+    }
+  },
+  "botCriterionBest": "cu cel mai bun rating",
+  "botCriterionWorst": "cu cel mai slab rating",
+  "botNoDrinkIn": "Din păcate, nu am găsit baruri sau cafenele în {city}.",
+  "@botNoDrinkIn": {
+    "placeholders": {
+      "city": {
+        "type": "String"
+      }
+    }
+  },
+  "botNoFoodIn": "Din păcate, nu am găsit restaurante în {city}.",
+  "@botNoFoodIn": {
+    "placeholders": {
+      "city": {
+        "type": "String"
+      }
+    }
+  },
+  "botNoPlacesIn": "Din păcate, nu am găsit localuri în {city}.",
+  "@botNoPlacesIn": {
+    "placeholders": {
+      "city": {
+        "type": "String"
+      }
+    }
+  },
+  "botDrinkIn": "În {city} poți bea ceva la: {names}.",
+  "@botDrinkIn": {
+    "placeholders": {
+      "city": {
+        "type": "String"
+      },
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "botFoodIn": "În {city} poți mânca la: {names}.",
+  "@botFoodIn": {
+    "placeholders": {
+      "city": {
+        "type": "String"
+      },
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "botPlacesIn": "În {city} am găsit: {names}.",
+  "@botPlacesIn": {
+    "placeholders": {
+      "city": {
+        "type": "String"
+      },
+      "names": {
+        "type": "String"
+      }
+    }
+  },
+  "botItemCoffee": "cafea",
+  "botItemTea": "ceai",
+  "botItemMatcha": "matcha",
+  "botItemPizza": "pizza",
+  "botItemBurgers": "burgeri",
+  "botItemBeer": "bere",
+  "botItemWine": "vin",
+  "botItemVegan": "mâncare vegană",
+  "botItemSmoothie": "smoothie",
+  "botItemPasta": "paste",
+  "botItemSushi": "sushi",
+  "chatSuggestion1": "Vreau să beau ceva în Cluj-Napoca",
+  "chatSuggestion2": "Cea mai bună cafea",
+  "chatSuggestion3": "Caută Burger Shack",
+  "chatSuggestion4": "Cum fac o rezervare?",
+  "chatWelcome": "Salut! Sunt asistentul Top Places. Răspund pe loc la întrebări despre localuri, orașe și rezervări.",
+  "chatWelcomeWithAi": "Salut! Sunt asistentul Top Places. Răspund pe loc la întrebări despre localuri, orașe și rezervări, iar ce nu știu întreb AI-ul (Gemini).",
+  "chatAiQuota": "Nu am înțeles întrebarea, iar AI-ul și-a atins limita gratuită pentru moment. Întreabă-mă despre localuri, orașe sau rezervări.",
+  "chatAiDown": "Nu am înțeles întrebarea, iar AI-ul nu răspunde acum (poate lipsește internetul). Întreabă-mă despre localuri, orașe sau rezervări.",
+  "chatGeminiWriting": "Gemini scrie un răspuns",
+  "chatHint": "Scrie un mesaj...",
+  "chatSend": "Trimite",
+  "chatYou": "Tu",
+  "chatAssistant": "Asistentul",
+  "showOnMap": "Arată pe hartă"
+}

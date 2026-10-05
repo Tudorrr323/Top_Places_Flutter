@@ -8,6 +8,7 @@ import 'package:top_places/models/place.dart';
 import 'package:top_places/screens/explore_screen.dart';
 import 'package:top_places/services/gemini_service.dart';
 import 'package:top_places/services/places_repository.dart';
+import 'package:top_places/view_models/language_settings.dart';
 
 import '../fake_gemini.dart';
 
@@ -23,12 +24,17 @@ void main() {
     String location, {
     GeminiService? gemini,
     PlacesRepository? places,
+    LanguageSettings? language,
   }) async {
     tester.view.physicalSize = const Size(400, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
-      TopPlacesApp(repository: places ?? repository, gemini: gemini),
+      TopPlacesApp(
+        repository: places ?? repository,
+        gemini: gemini,
+        language: language,
+      ),
     );
     await tester.pumpAndSettle();
     GoRouter.of(tester.element(find.byType(ExploreScreen))).go(location);
@@ -40,20 +46,21 @@ void main() {
   const romanian =
       'Design modern, perfect pentru un brunch relaxat. Au cele mai bune prăjituri.';
 
-  testWidgets(
-    'the description is in Romanian, with the original one tap away',
-    (tester) async {
-      await openLink(tester, '/locations/cafe-new-world');
-      expect(find.text(romanian), findsOneWidget);
-      expect(find.text(english), findsNothing);
+  testWidgets('the description follows the language of the app', (
+    tester,
+  ) async {
+    final language = LanguageSettings();
+    await openLink(tester, '/locations/cafe-new-world', language: language);
+    expect(find.text(romanian), findsOneWidget);
+    expect(find.text(english), findsNothing);
+    expect(find.text('EN'), findsNothing, reason: 'no switch on the page');
 
-      await tester.tap(find.text('EN'));
-      await tester.pumpAndSettle();
+    language.choose(LanguageSettings.english);
+    await tester.pumpAndSettle();
 
-      expect(find.text(english), findsOneWidget);
-      expect(find.text('Textul original, în engleză.'), findsOneWidget);
-    },
-  );
+    expect(find.text(english), findsOneWidget);
+    expect(find.text('About the place'), findsOneWidget);
+  });
 
   testWidgets('the vibe button shows an example, labelled as one', (
     tester,
@@ -110,11 +117,13 @@ void main() {
   testWidgets('in English, the vibe examples are in English too', (
     tester,
   ) async {
-    await openLink(tester, '/locations/cafe-new-world');
-    await tester.tap(find.text('EN'));
-    await tester.pumpAndSettle();
+    await openLink(
+      tester,
+      '/locations/cafe-new-world',
+      language: LanguageSettings(locale: LanguageSettings.english),
+    );
 
-    await tester.tap(find.text('Arată un exemplu de vibe'));
+    await tester.tap(find.text('Show an example vibe'));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('The atmosphere is electric'), findsOneWidget);
@@ -131,11 +140,10 @@ void main() {
         'A relaxed brunch spot with great cakes. 🍰',
         onRequest: (request) => asked.add(request.body),
       ),
+      language: LanguageSettings(locale: LanguageSettings.english),
     );
-    await tester.tap(find.text('EN'));
-    await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Generează un vibe cu AI'));
+    await tester.tap(find.text('Generate a vibe with AI'));
     await tester.pumpAndSettle();
 
     expect(asked.single, contains('Write only in English'));
@@ -145,11 +153,12 @@ void main() {
   testWidgets('an example stays on screen and changes language', (
     tester,
   ) async {
-    await openLink(tester, '/locations/cafe-new-world');
+    final language = LanguageSettings();
+    await openLink(tester, '/locations/cafe-new-world', language: language);
     await tester.tap(find.text('Arată un exemplu de vibe'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('EN'));
+    language.choose(LanguageSettings.english);
     await tester.pumpAndSettle();
 
     expect(find.textContaining('The atmosphere is electric'), findsOneWidget);
@@ -157,6 +166,7 @@ void main() {
 
   testWidgets('an AI vibe stays on screen and is translated', (tester) async {
     final asked = <String>[];
+    final language = LanguageSettings();
     await openLink(
       tester,
       '/locations/cafe-new-world',
@@ -164,25 +174,26 @@ void main() {
         'Brunch lejer și prăjituri bune. 🍰',
         'A relaxed brunch and great cakes. 🍰',
       ], onRequest: (request) => asked.add(request.body)),
+      language: language,
     );
     await tester.tap(find.text('Generează un vibe cu AI'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('EN'));
+    language.choose(LanguageSettings.english);
     await tester.pumpAndSettle();
 
     expect(find.text('A relaxed brunch and great cakes. 🍰'), findsOneWidget);
     expect(asked.last, contains('Translate the text below into English'));
 
     // Back to Romanian: the first text again, without a new request.
-    await tester.tap(find.text('RO'));
+    language.choose(LanguageSettings.romanian);
     await tester.pumpAndSettle();
 
     expect(find.text('Brunch lejer și prăjituri bune. 🍰'), findsOneWidget);
     expect(asked, hasLength(2));
   });
 
-  testWidgets("an operator's place in one language has no translation note", (
+  testWidgets('without a Romanian description, the English one shows', (
     tester,
   ) async {
     final oneLanguage = PlacesRepository(
@@ -205,8 +216,6 @@ void main() {
     await openLink(tester, '/locations/ceainaria-ana', places: oneLanguage);
 
     expect(find.text('Ceai bun și liniște, aproape de centru.'), findsOne);
-    expect(find.text('EN'), findsNothing);
-    expect(find.textContaining('engleză'), findsNothing);
   });
 
   testWidgets('without Supabase the reviews tab says why it is empty', (

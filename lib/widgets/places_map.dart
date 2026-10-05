@@ -1,15 +1,17 @@
 import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import 'package:top_places/l10n/l10n.dart';
 import 'package:top_places/models/place.dart';
 import 'package:top_places/services/location_service.dart';
 import 'package:top_places/utils/clusters.dart';
 import 'package:top_places/utils/links.dart';
 import 'package:top_places/widgets/place_marker.dart';
+import 'package:top_places/view_models/explore_view_model.dart';
 import 'package:top_places/widgets/place_sheet.dart';
 
 /// How wide a marker is.
@@ -25,19 +27,44 @@ const _separateZoom = 17.0;
 /// OpenStreetMap with a marker for every place. Places too close to tell
 /// apart share one bubble, which splits when the map zooms in. Tapping a
 /// marker opens the place in a sheet: small at first, the whole page when
-/// dragged up. The GPS button shows where the device is.
+/// dragged up. The GPS button shows where the device is. The map moves only
+/// when asked to: by a [request], a marker or the GPS button.
 class PlacesMap extends StatefulWidget {
-  const PlacesMap({super.key, required this.places});
+  const PlacesMap({
+    super.key,
+    required this.places,
+    this.request,
+    this.onRequestShown,
+  });
 
   final List<Place> places;
+
+  /// Something to show, asked for from elsewhere.
+  final MapRequest? request;
+
+  /// Called once [request] is shown.
+  final VoidCallback? onRequestShown;
 
   @override
   State<PlacesMap> createState() => _PlacesMapState();
 }
 
-class _PlacesMapState extends State<PlacesMap> {
+class _PlacesMapState extends State<PlacesMap>
+    with SingleTickerProviderStateMixin {
   final _mapController = MapController();
   Place? _selected;
+
+  /// The flight of the map to a place.
+  late final _flight = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  );
+
+  /// What moves the map during the current flight.
+  VoidCallback? _flightStep;
+
+  /// The number of the last request shown.
+  int? _shownRequest;
 
   /// Where the device is, once the GPS button found it.
   LatLng? _myLocation;
@@ -55,22 +82,97 @@ class _PlacesMapState extends State<PlacesMap> {
   );
 
   @override
+  void initState() {
+    super.initState();
+    _showLater(widget.request);
+  }
+
+  @override
   void didUpdateWidget(PlacesMap oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // After a search or a filter, show the places that are left.
-    final placesChanged = !listEquals(oldWidget.places, widget.places);
-    if (placesChanged && widget.places.isNotEmpty) {
-      // Wait until this frame is drawn; the map can't move in the middle of it.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _mapController.fitCamera(_fitAllPlaces);
-      });
-    }
+    _showLater(widget.request);
   }
 
   @override
   void dispose() {
+    _flight.dispose();
     _mapController.dispose();
     super.dispose();
+  }
+
+  /// Shows [request] once this frame is drawn: the map can't move in the
+  /// middle of it.
+  void _showLater(MapRequest? request) {
+    if (request == null || request.number == _shownRequest) return;
+    _shownRequest = request.number;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.onRequestShown?.call();
+      switch (request.place) {
+        case final place?:
+          _flyTo(place);
+        case null when widget.places.isNotEmpty:
+          _mapController.fitCamera(_fitAllPlaces);
+        case null:
+          break;
+      }
+    });
+  }
+
+  /// Moves the map smoothly from where it is to [place], close enough for
+  /// the place to have its own marker, then opens it.
+  Future<void> _flyTo(Place place) async {
+    final camera = _mapController.camera;
+    final zoom = math.max(camera.zoom, _separateZoom);
+    // The place ends above the middle, clear of the sheet that opens over
+    // the bottom of the map.
+    final shift = Offset(0, math.min(120, camera.size.height / 4));
+    final target = camera.unprojectAtZoom(
+      camera.projectAtZoom(LatLng(place.lat, place.lng), zoom) + shift,
+      zoom,
+    );
+    if (await _fly(target, zoom) && mounted) await _open(place);
+  }
+
+  /// Moves the map smoothly from where it is to [target] at [zoom]. False
+  /// when another flight took over, or the map closed, before the end.
+  Future<bool> _fly(LatLng target, double zoom) async {
+    final camera = _mapController.camera;
+    final from = camera.center;
+    final fromZoom = camera.zoom;
+
+    _stopFlight();
+    void step() {
+      final t = Curves.easeInOutCubic.transform(_flight.value);
+      _mapController.move(
+        LatLng(
+          lerpDouble(from.latitude, target.latitude, t)!,
+          lerpDouble(from.longitude, target.longitude, t)!,
+        ),
+        lerpDouble(fromZoom, zoom, t)!,
+      );
+    }
+
+    _flightStep = step;
+    _flight.addListener(step);
+    // No motion when the system settings ask for less of it.
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _flight.value = 1;
+    } else {
+      try {
+        await _flight.forward(from: 0).orCancel;
+      } on TickerCanceled {
+        return false;
+      }
+    }
+    _stopFlight();
+    return true;
+  }
+
+  void _stopFlight() {
+    _flight.stop();
+    if (_flightStep case final step?) _flight.removeListener(step);
+    _flightStep = null;
   }
 
   /// Zooms in on [places], until their markers separate.
@@ -84,26 +186,34 @@ class _PlacesMapState extends State<PlacesMap> {
     );
   }
 
-  /// The GPS button: asks for the permission the first time, then moves
+  /// The GPS button: asks for the permission the first time, then flies
   /// the map to where the device is.
   Future<void> _goToMyLocation() async {
     final location = context.read<LocationService>();
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
     setState(() => _locating = true);
     try {
       final here = await location.currentLocation();
       if (!mounted) return;
       setState(() => _myLocation = here);
       // Close enough to see the streets, without zooming out.
-      _mapController.move(here, math.max(_mapController.camera.zoom, 15));
+      await _fly(here, math.max(_mapController.camera.zoom, 15));
     } on LocationException catch (error) {
       final openSettings = error.openSettings;
       messenger.showSnackBar(
         SnackBar(
-          content: Text(error.message),
+          content: Text(switch (error.problem) {
+            LocationProblem.serviceOff => l10n.locationServiceOff,
+            LocationProblem.denied => l10n.locationDenied,
+            LocationProblem.deniedForever => l10n.locationDeniedForever,
+            LocationProblem.blockedByBrowser => l10n.locationBlockedByBrowser,
+            LocationProblem.accuracyOff => l10n.locationAccuracyOff,
+            LocationProblem.notFound => l10n.locationNotFound,
+          }),
           action: openSettings == null
               ? null
-              : SnackBarAction(label: 'Setări', onPressed: openSettings),
+              : SnackBarAction(label: l10n.settings, onPressed: openSettings),
         ),
       );
     } finally {
@@ -179,7 +289,7 @@ class _PlacesMapState extends State<PlacesMap> {
           child: FloatingActionButton.small(
             // Not shared with another screen.
             heroTag: null,
-            tooltip: 'Arată-mi locația',
+            tooltip: context.l10n.myLocationTooltip,
             onPressed: _locating ? null : _goToMyLocation,
             child: _locating
                 ? const SizedBox.square(
@@ -201,7 +311,7 @@ class _MyLocationDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'Locația ta',
+      label: context.l10n.myLocationLabel,
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.primary,

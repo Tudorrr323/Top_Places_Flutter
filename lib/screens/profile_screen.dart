@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:top_places/l10n/l10n.dart';
 import 'package:top_places/models/profile.dart';
 import 'package:top_places/screens/admin_places_screen.dart';
 import 'package:top_places/screens/admin_users_screen.dart';
 import 'package:top_places/screens/ratings_moderation_screen.dart';
 import 'package:top_places/view_models/account_view_model.dart';
+import 'package:top_places/view_models/language_settings.dart';
 import 'package:top_places/widgets/dialogs.dart';
 import 'package:top_places/widgets/my_places.dart';
 
 /// The Profil tab: sign in or create an account; once signed in, the
-/// account, the request to become an operator and signing out.
+/// account, the request to become an operator and signing out. The settings
+/// (the language) are there too, with or without an account.
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
@@ -17,11 +20,12 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final account = context.watch<AccountViewModel>();
     final profile = account.profile;
+    final l10n = context.l10n;
 
     return Scaffold(
       // No refresh button: opening the tab loads the account again (see
       // HomeShell).
-      appBar: AppBar(title: const Text('Profil')),
+      appBar: AppBar(title: Text(l10n.tabProfile)),
       body: Center(
         // On wide windows the forms stay readable instead of stretching.
         child: ConstrainedBox(
@@ -30,10 +34,7 @@ class ProfileScreen extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             children: [
               if (!account.isAvailable)
-                const Text(
-                  'Conturile nu sunt disponibile în această versiune a '
-                  'aplicației: lipsește configurarea Supabase.',
-                )
+                Text(l10n.accountsUnavailable)
               else if (profile == null)
                 const _SignInForm()
               else
@@ -44,13 +45,15 @@ class ProfileScreen extends StatelessWidget {
                 Semantics(
                   liveRegion: true,
                   child: Text(
-                    error,
+                    l10n.accountError(error),
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.error,
                     ),
                   ),
                 ),
               ],
+              const SizedBox(height: 32),
+              const _Settings(),
             ],
           ),
         ),
@@ -115,6 +118,9 @@ class _SignInFormState extends State<_SignInForm> {
   Widget build(BuildContext context) {
     final busy = context.watch<AccountViewModel>().isBusy;
     final sentTo = _confirmationSentTo;
+    final l10n = context.l10n;
+    String? required(String? value) =>
+        value == null || value.trim().isEmpty ? l10n.requiredField : null;
 
     return Form(
       key: _formKey,
@@ -122,9 +128,9 @@ class _SignInFormState extends State<_SignInForm> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SegmentedButton<bool>(
-            segments: const [
-              ButtonSegment(value: false, label: Text('Intră în cont')),
-              ButtonSegment(value: true, label: Text('Cont nou')),
+            segments: [
+              ButtonSegment(value: false, label: Text(l10n.signIn)),
+              ButtonSegment(value: true, label: Text(l10n.newAccount)),
             ],
             selected: {_newAccount},
             showSelectedIcon: false,
@@ -136,44 +142,40 @@ class _SignInFormState extends State<_SignInForm> {
             Card.filled(
               child: Padding(
                 padding: const EdgeInsets.all(12),
-                child: Text(
-                  'Ți-am trimis un email la $sentTo. Deschide linkul din el, '
-                  'apoi intră în cont aici. Dacă nu îl vezi, caută și în '
-                  'Spam.',
-                ),
+                child: Text(l10n.confirmationSent(sentTo)),
               ),
             ),
           if (_newAccount) ...[
             TextFormField(
               controller: _firstName,
-              decoration: const InputDecoration(labelText: 'Prenume'),
+              decoration: InputDecoration(labelText: l10n.firstName),
               textInputAction: TextInputAction.next,
               autofillHints: const [AutofillHints.givenName],
-              validator: _required,
+              validator: required,
             ),
             TextFormField(
               controller: _lastName,
-              decoration: const InputDecoration(labelText: 'Nume'),
+              decoration: InputDecoration(labelText: l10n.lastName),
               textInputAction: TextInputAction.next,
               autofillHints: const [AutofillHints.familyName],
-              validator: _required,
+              validator: required,
             ),
           ],
           TextFormField(
             controller: _email,
-            decoration: const InputDecoration(labelText: 'Email'),
+            decoration: InputDecoration(labelText: l10n.email),
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.next,
             autofillHints: const [AutofillHints.email],
             validator: (value) =>
                 RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value!.trim())
                 ? null
-                : 'Scrie o adresă de email validă.',
+                : l10n.invalidEmail,
           ),
           TextFormField(
             controller: _password,
             decoration: InputDecoration(
-              labelText: 'Parolă',
+              labelText: l10n.password,
               suffixIcon: _showPasswordButton(),
             ),
             obscureText: !_showPassword,
@@ -183,21 +185,21 @@ class _SignInFormState extends State<_SignInForm> {
             ],
             onFieldSubmitted: (_) => _submit(),
             validator: (value) => _newAccount && value!.length < 8
-                ? 'Parola trebuie să aibă cel puțin 8 caractere.'
-                : _required(value),
+                ? l10n.passwordTooShort
+                : required(value),
           ),
           if (_newAccount)
             TextFormField(
-              decoration: const InputDecoration(labelText: 'Repetă parola'),
+              decoration: InputDecoration(labelText: l10n.repeatPassword),
               // The same button shows both passwords, to compare them.
               obscureText: !_showPassword,
               validator: (value) =>
-                  value == _password.text ? null : 'Parolele nu sunt la fel.',
+                  value == _password.text ? null : l10n.passwordsDiffer,
             ),
           const SizedBox(height: 24),
           FilledButton(
             onPressed: busy ? null : _submit,
-            child: Text(_newAccount ? 'Creează contul' : 'Intră în cont'),
+            child: Text(_newAccount ? l10n.createAccount : l10n.signIn),
           ),
         ],
       ),
@@ -207,14 +209,13 @@ class _SignInFormState extends State<_SignInForm> {
   Widget _showPasswordButton() {
     return IconButton(
       // The tooltip is also what screen readers say.
-      tooltip: _showPassword ? 'Ascunde parola' : 'Arată parola',
+      tooltip: _showPassword
+          ? context.l10n.hidePassword
+          : context.l10n.showPassword,
       icon: Icon(_showPassword ? Icons.visibility_off : Icons.visibility),
       onPressed: () => setState(() => _showPassword = !_showPassword),
     );
   }
-
-  static String? _required(String? value) =>
-      value == null || value.trim().isEmpty ? 'Câmp obligatoriu.' : null;
 }
 
 /// The signed-in account: suspension, name, role and what comes with it.
@@ -238,6 +239,7 @@ class _AccountDetails extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     final account = context.watch<AccountViewModel>();
     final busy = account.isBusy;
     final suspended = profile.isSuspended;
@@ -254,12 +256,11 @@ class _AccountDetails extends StatelessWidget {
                 color: theme.colorScheme.onErrorContainer,
               ),
               title: Text(
-                'Contul tău e suspendat',
+                l10n.accountSuspended,
                 style: TextStyle(color: theme.colorScheme.onErrorContainer),
               ),
               subtitle: Text(
-                'Motiv: ${profile.suspendedReason}\nPoți vedea localurile, '
-                'dar nu poți face modificări.',
+                l10n.accountSuspendedDetails(profile.suspendedReason ?? ''),
                 style: TextStyle(color: theme.colorScheme.onErrorContainer),
               ),
             ),
@@ -269,14 +270,16 @@ class _AccountDetails extends StatelessWidget {
             title: Semantics(
               header: true,
               child: Text(
-                profile.fullName.isEmpty ? 'Fără nume' : profile.fullName,
+                profile.fullName.isEmpty ? l10n.noName : profile.fullName,
                 style: theme.textTheme.titleLarge,
               ),
             ),
-            subtitle: Text('${profile.email}\n${_roleLabel(profile.role)}'),
+            subtitle: Text(
+              '${profile.email}\n${_roleLabel(l10n, profile.role)}',
+            ),
             isThreeLine: true,
             trailing: IconButton(
-              tooltip: 'Schimbă numele',
+              tooltip: l10n.changeName,
               onPressed: busy || suspended ? null : () => _editName(context),
               icon: const Icon(Icons.edit),
             ),
@@ -288,7 +291,7 @@ class _AccountDetails extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: busy ? null : account.signOut,
           icon: const Icon(Icons.logout),
-          label: const Text('Ieși din cont'),
+          label: Text(l10n.signOut),
         ),
       ],
     );
@@ -297,6 +300,7 @@ class _AccountDetails extends StatelessWidget {
   /// What the role adds: an operator's places and their reviews, the
   /// admin's tools, or the request to become an operator.
   List<Widget> _roleSection(BuildContext context, AccountViewModel account) {
+    final l10n = context.l10n;
     void open(Widget screen) =>
         Navigator.of(context)
             .push(MaterialPageRoute<void>(builder: (context) => screen));
@@ -304,9 +308,7 @@ class _AccountDetails extends StatelessWidget {
       onPressed: () => open(const RatingsModerationScreen()),
       icon: const Icon(Icons.reviews_outlined),
       label: Text(
-        profile.role == Role.admin
-            ? 'Recenzii: acceptări și ștergeri'
-            : 'Recenziile localurilor mele',
+        profile.role == Role.admin ? l10n.reviewsAdmin : l10n.reviewsOperator,
       ),
     );
 
@@ -318,7 +320,7 @@ class _AccountDetails extends StatelessWidget {
         Semantics(
           header: true,
           child: Text(
-            'Administrare',
+            l10n.administration,
             style: Theme.of(context).textTheme.titleMedium,
           ),
         ),
@@ -326,13 +328,13 @@ class _AccountDetails extends StatelessWidget {
         FilledButton.tonalIcon(
           onPressed: () => open(const AdminPlacesScreen()),
           icon: const Icon(Icons.fact_check_outlined),
-          label: const Text('Localuri: aprobări și suspendări'),
+          label: Text(l10n.adminPlaces),
         ),
         const SizedBox(height: 8),
         FilledButton.tonalIcon(
           onPressed: () => open(const AdminUsersScreen()),
           icon: const Icon(Icons.manage_accounts_outlined),
-          label: const Text('Utilizatori și operatori'),
+          label: Text(l10n.adminUsers),
         ),
         const SizedBox(height: 8),
         reviews,
@@ -348,14 +350,11 @@ class _AccountDetails extends StatelessWidget {
     }
     if (profile.isSuspended) return const [];
     return switch (profile.operatorRequest) {
-      OperatorRequest.pending => const [
-        Text('Ai cerut să devii operator. Un administrator îți va răspunde.'),
-      ],
+      OperatorRequest.pending => [Text(l10n.operatorRequestPending)],
       final request => [
         if (request == OperatorRequest.rejected)
           Text(
-            'Cererea ta de a deveni operator a fost respinsă. Motiv: '
-            '${profile.operatorRequestReason}',
+            l10n.operatorRequestRejected(profile.operatorRequestReason ?? ''),
           ),
         const SizedBox(height: 8),
         FilledButton.tonalIcon(
@@ -363,17 +362,61 @@ class _AccountDetails extends StatelessWidget {
           icon: const Icon(Icons.storefront),
           label: Text(
             request == OperatorRequest.rejected
-                ? 'Trimite din nou cererea'
-                : 'Vreau să adaug localuri',
+                ? l10n.sendRequestAgain
+                : l10n.wantToAddPlaces,
           ),
         ),
       ],
     };
   }
 
-  static String _roleLabel(Role role) => switch (role) {
-    Role.user => 'Utilizator',
-    Role.operator => 'Operator de localuri',
-    Role.admin => 'Administrator',
+  static String _roleLabel(AppLocalizations l10n, Role role) => switch (role) {
+    Role.user => l10n.roleUser,
+    Role.operator => l10n.roleOperator,
+    Role.admin => l10n.roleAdmin,
   };
+}
+
+/// The settings of the app, with or without an account: the language.
+class _Settings extends StatelessWidget {
+  const _Settings();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final language = context.watch<LanguageSettings>();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Semantics(
+          header: true,
+          child: Text(
+            l10n.settings,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(l10n.language),
+        const SizedBox(height: 8),
+        SegmentedButton<Locale>(
+          // Each language written in itself, so it can be found from the
+          // other one.
+          segments: const [
+            ButtonSegment(
+              value: LanguageSettings.romanian,
+              label: Text('Română'),
+            ),
+            ButtonSegment(
+              value: LanguageSettings.english,
+              label: Text('English'),
+            ),
+          ],
+          selected: {language.locale},
+          showSelectedIcon: false,
+          onSelectionChanged: (selection) => language.choose(selection.single),
+        ),
+      ],
+    );
+  }
 }

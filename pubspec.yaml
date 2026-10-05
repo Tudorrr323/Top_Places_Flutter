@@ -20,6 +20,7 @@ dependencies:
   http: ^1.6.0
   supabase_flutter: ^2.18.0
   geolocator: ^14.1.1
+  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:
@@ -28,6 +29,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # The texts in lib/l10n, see l10n.yaml.
+  generate: true
   assets:
     - assets/data/
     - assets/images/

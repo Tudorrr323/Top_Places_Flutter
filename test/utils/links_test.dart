@@ -24,7 +24,7 @@ void main() {
   });
 
   test('whatsAppUri puts the booking message in the link', () {
-    final uri = whatsAppUri(place);
+    final uri = whatsAppUri('Rezervare la Test');
 
     expect(uri.toString(), 'https://wa.me/?text=Rezervare%20la%20Test');
   });

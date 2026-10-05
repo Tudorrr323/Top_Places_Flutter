@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:top_places/app.dart';
 import 'package:top_places/services/places_repository.dart';
+import 'package:top_places/view_models/language_settings.dart';
 
 void main() {
   final repository = PlacesRepository.fromJsonStrings(
@@ -32,13 +33,17 @@ void main() {
     expect(find.byType(NavigationBar), findsNothing);
   });
 
-  testWidgets('tapping a place opens its details', (tester) async {
+  testWidgets('tapping a place in the list opens it on the map', (
+    tester,
+  ) async {
     await startApp(tester, const Size(400, 800));
     // The cards are tall, so search first to bring the place to the top.
     await tester.enterText(find.byType(TextField), 'new world');
     await tester.pumpAndSettle();
     await tester.tap(find.text("Café 'New World'"));
     await tester.pumpAndSettle();
+
+    expect(find.byType(DraggableScrollableSheet), findsOneWidget);
     expect(find.text('Str. Lăpușneanu, Nr. 12, Iași'), findsOneWidget);
   });
 
@@ -47,5 +52,35 @@ void main() {
     await tester.tap(find.text('Profil'));
     await tester.pumpAndSettle();
     expect(find.widgetWithText(AppBar, 'Profil'), findsOneWidget);
+  });
+
+  testWidgets('English, chosen on the Profil tab, changes every text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final language = LanguageSettings();
+    await tester.pumpWidget(
+      TopPlacesApp(repository: repository, language: language),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Profil'));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('English'));
+    await tester.tap(find.text('English'));
+    await tester.pumpAndSettle();
+
+    expect(language.locale, LanguageSettings.english);
+    expect(find.text('Explore'), findsOneWidget);
+    expect(find.text('Assistant'), findsOneWidget);
+    expect(find.widgetWithText(AppBar, 'Profile'), findsOneWidget);
+    expect(find.text('Language of the app'), findsOneWidget);
+
+    await tester.tap(find.text('Explore'));
+    await tester.pumpAndSettle();
+    expect(find.text('Search places or cities...'), findsOneWidget);
+    expect(find.text('20 results'), findsOneWidget);
   });
 }

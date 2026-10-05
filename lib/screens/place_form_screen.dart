@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import 'package:top_places/l10n/l10n.dart';
 import 'package:top_places/models/place.dart';
+import 'package:top_places/services/gemini_service.dart';
 import 'package:top_places/services/place_service.dart';
 import 'package:top_places/services/places_repository.dart';
 
 /// Adds a place, or edits one when [place] is given. The checks are the same
 /// as in the database, so a mistake shows here instead of as an error from
-/// the server.
+/// the server. The description is written in Romanian and in English; a
+/// button translates one into the other.
 class PlaceFormScreen extends StatefulWidget {
   const PlaceFormScreen({super.key, this.place, this.asAdmin = false});
 
@@ -27,9 +30,19 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
   late final _name = TextEditingController(text: widget.place?.name);
   late final _address = TextEditingController(text: widget.place?.address);
   late final _imageUrl = TextEditingController(text: widget.place?.imageUrl);
-  late final _description = TextEditingController(
+  late final _descriptionRo = TextEditingController(
+    text: widget.place?.descriptionRo,
+  );
+  late final _descriptionEn = TextEditingController(
     text: widget.place?.description,
   );
+
+  /// True when the Romanian description was the last one changed: the
+  /// button translates from it when both are written.
+  bool _romanianLast = true;
+
+  bool _translating = false;
+  String? _translationError;
   late String? _city = widget.place?.city;
 
   /// Where the place is; set by a tap on the map.
@@ -38,11 +51,17 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
     null => null,
   };
   bool _saving = false;
-  String? _error;
+  PlaceException? _error;
 
   @override
   void dispose() {
-    for (final controller in [_name, _address, _imageUrl, _description]) {
+    for (final controller in [
+      _name,
+      _address,
+      _imageUrl,
+      _descriptionRo,
+      _descriptionEn,
+    ]) {
       controller.dispose();
     }
     _mapController.dispose();
@@ -61,7 +80,8 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
       lat: position.latitude,
       lng: position.longitude,
       imageUrl: _imageUrl.text,
-      description: _description.text,
+      description: _descriptionEn.text,
+      descriptionRo: _descriptionRo.text,
     );
     setState(() {
       _saving = true;
@@ -77,8 +97,57 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
       if (mounted) Navigator.of(context).pop();
     } on PlaceException catch (error) {
       setState(() {
-        _error = error.message;
+        _error = error;
         _saving = false;
+      });
+    }
+  }
+
+  /// Which way the button translates: into English (true) or Romanian
+  /// (false), from the description written last or the only one written;
+  /// null while both are empty.
+  bool? get _toEnglish {
+    final romanian = _descriptionRo.text.trim().isNotEmpty;
+    final english = _descriptionEn.text.trim().isNotEmpty;
+    if (romanian && english) return _romanianLast;
+    if (romanian) return true;
+    if (english) return false;
+    return null;
+  }
+
+  Future<void> _translate(GeminiService gemini, bool toEnglish) async {
+    final source = (toEnglish ? _descriptionRo : _descriptionEn).text.trim();
+    final target = toEnglish ? _descriptionEn : _descriptionRo;
+    // Faithful, not creative: the same description in the other language.
+    final (prompt, instructions) = toEnglish
+        ? (
+            'Translate into English the description of a place in Romania. '
+                'Keep exactly the same meaning.\n\n$source',
+            'Reply only with the translation, in at most 300 characters, '
+                'without Markdown or quotes. Add nothing.',
+          )
+        : (
+            'Tradu în română descrierea unui local din România. Păstrează '
+                'exact același sens.\n\n$source',
+            'Răspunzi doar cu traducerea, în cel mult 300 de caractere, fără '
+                'Markdown sau ghilimele. Nu adăuga nimic.',
+          );
+    setState(() {
+      _translating = true;
+      _translationError = null;
+    });
+    try {
+      final text = await gemini.generate(prompt, instructions: instructions);
+      if (!mounted) return;
+      setState(() {
+        target.text = text.trim();
+        _translating = false;
+      });
+    } on GeminiException {
+      if (!mounted) return;
+      setState(() {
+        _translationError = context.l10n.translateFailed;
+        _translating = false;
       });
     }
   }
@@ -87,10 +156,18 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
   Widget build(BuildContext context) {
     final cities = context.read<PlacesRepository>().cities;
     final place = widget.place;
+    final l10n = context.l10n;
+    String? length(String? value, int min, int max) {
+      final length = value?.trim().length ?? 0;
+      if (length == 0) return l10n.requiredField;
+      if (length < min) return l10n.tooShort(min);
+      if (length > max) return l10n.tooLong(max);
+      return null;
+    }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(place == null ? 'Local nou' : 'Editează localul'),
+        title: Text(place == null ? l10n.newPlaceTitle : l10n.editPlaceTitle),
       ),
       body: Center(
         child: ConstrainedBox(
@@ -101,30 +178,28 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 if (place?.status == PlaceStatus.approved && !widget.asAdmin)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      'După ce salvezi, localul intră din nou în verificare și '
-                      'nu apare în Explorează până nu îl aprobă un '
-                      'administrator.',
-                    ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(l10n.editGoesToReview),
                   ),
                 TextFormField(
                   controller: _name,
-                  decoration: const InputDecoration(labelText: 'Nume'),
-                  validator: (value) => _length(value, 2, 80),
+                  decoration: InputDecoration(labelText: l10n.placeName),
+                  validator: (value) => length(value, 2, 80),
                 ),
                 TextFormField(
                   controller: _address,
-                  decoration: const InputDecoration(
-                    labelText: 'Adresă',
+                  decoration: InputDecoration(
+                    labelText: l10n.address,
+                    // An address in Romania, written the same way in both
+                    // languages.
                     hintText: 'Str. Lăpușneanu, Nr. 12',
                   ),
-                  validator: (value) => _length(value, 3, 120),
+                  validator: (value) => length(value, 3, 120),
                 ),
                 DropdownButtonFormField<String>(
                   initialValue: _city,
-                  decoration: const InputDecoration(labelText: 'Oraș'),
+                  decoration: InputDecoration(labelText: l10n.city),
                   items: [
                     for (final city in cities)
                       DropdownMenuItem(
@@ -132,7 +207,7 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
                         child: Text(city.name),
                       ),
                   ],
-                  validator: (value) => value == null ? 'Alege orașul.' : null,
+                  validator: (value) => value == null ? l10n.chooseCity : null,
                   onChanged: (name) {
                     setState(() => _city = name);
                     // Shows the chosen city, ready for a tap on the place.
@@ -144,13 +219,13 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
                 FormField<LatLng>(
                   initialValue: _position,
                   validator: (value) => switch (value) {
-                    null => 'Atinge harta ca să alegi locul.',
+                    null => l10n.tapMapToChoose,
                     LatLng(:final latitude, :final longitude)
                         when latitude < 43.5 ||
                             latitude > 48.5 ||
                             longitude < 20 ||
                             longitude > 30 =>
-                      'Locul trebuie să fie în România.',
+                      l10n.mustBeInRomania,
                     _ => null,
                   },
                   builder: (field) => _PositionPicker(
@@ -165,8 +240,8 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
                 ),
                 TextFormField(
                   controller: _imageUrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Link către o poză (opțional)',
+                  decoration: InputDecoration(
+                    labelText: l10n.photoLink,
                     hintText: 'https://…',
                   ),
                   keyboardType: TextInputType.url,
@@ -174,25 +249,37 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
                     final url = value!.trim();
                     return url.isEmpty || url.startsWith('https://')
                         ? null
-                        : 'Linkul trebuie să înceapă cu https://';
+                        : l10n.linkMustBeHttps;
                   },
                 ),
-                TextFormField(
-                  controller: _description,
-                  decoration: const InputDecoration(
-                    labelText: 'Descriere',
-                    hintText: 'Ce face localul special?',
+                // Both are required: the app shows the one of its language.
+                for (final (controller, label, romanian) in [
+                  (_descriptionRo, l10n.descriptionRo, true),
+                  (_descriptionEn, l10n.descriptionEn, false),
+                ])
+                  TextFormField(
+                    controller: controller,
+                    decoration: InputDecoration(
+                      labelText: label,
+                      hintText: l10n.descriptionHint,
+                    ),
+                    minLines: 3,
+                    maxLines: 6,
+                    maxLength: 300,
+                    validator: (value) => length(value, 10, 300),
+                    onChanged: (_) => setState(() => _romanianLast = romanian),
                   ),
-                  minLines: 3,
-                  maxLines: 6,
-                  maxLength: 300,
-                  validator: (value) => _length(value, 10, 300),
+                _TranslateButton(
+                  toEnglish: _toEnglish,
+                  busy: _translating,
+                  error: _translationError,
+                  onTranslate: _translate,
                 ),
                 if (_error case final error?)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
-                      error,
+                      l10n.placeError(error),
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.error,
                       ),
@@ -202,9 +289,9 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
                 FilledButton(
                   onPressed: _saving ? null : _save,
                   child: Text(switch ((place, widget.asAdmin)) {
-                    (null, _) => 'Trimite spre aprobare',
-                    (_, true) => 'Salvează',
-                    _ => 'Salvează și trimite spre aprobare',
+                    (null, _) => l10n.sendForApproval,
+                    (_, true) => l10n.save,
+                    _ => l10n.saveAndSendForApproval,
                   }),
                 ),
               ],
@@ -214,13 +301,64 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
       ),
     );
   }
+}
 
-  static String? _length(String? value, int min, int max) {
-    final length = value?.trim().length ?? 0;
-    if (length == 0) return 'Câmp obligatoriu.';
-    if (length < min) return 'Prea scurt: cel puțin $min caractere.';
-    if (length > max) return 'Prea lung: cel mult $max caractere.';
-    return null;
+/// The button that writes the description in the other language, with
+/// Gemini. Without a key, it says so instead.
+class _TranslateButton extends StatelessWidget {
+  const _TranslateButton({
+    required this.toEnglish,
+    required this.busy,
+    required this.error,
+    required this.onTranslate,
+  });
+
+  /// Into English, into Romanian, or null with nothing to translate yet.
+  final bool? toEnglish;
+  final bool busy;
+  final String? error;
+  final void Function(GeminiService gemini, bool toEnglish) onTranslate;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = context.l10n;
+    final gemini = context.watch<GeminiService?>();
+    final toEnglish = this.toEnglish;
+    final muted = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    if (gemini == null) return Text(l10n.translateNeedsGemini, style: muted);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        OutlinedButton.icon(
+          onPressed: busy || toEnglish == null
+              ? null
+              : () => onTranslate(gemini, toEnglish),
+          icon: busy
+              ? const SizedBox.square(
+                  dimension: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.translate),
+          label: Text(
+            toEnglish == false
+                ? l10n.translateToRomanian
+                : l10n.translateToEnglish,
+          ),
+        ),
+        if (toEnglish == null) Text(l10n.translateNothingYet, style: muted),
+        if (error case final error?)
+          Text(
+            error,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.error,
+            ),
+          ),
+      ],
+    );
   }
 }
 
@@ -246,7 +384,7 @@ class _PositionPicker extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Poziția pe hartă', style: theme.textTheme.bodySmall),
+        Text(context.l10n.positionOnMap, style: theme.textTheme.bodySmall),
         const SizedBox(height: 4),
         SizedBox(
           height: 260,
@@ -293,8 +431,8 @@ class _PositionPicker extends StatelessWidget {
         Text(
           error ??
               (position == null
-                  ? 'Atinge harta în locul unde este localul.'
-                  : 'Poziție aleasă. Atinge din nou ca s-o schimbi.'),
+                  ? context.l10n.tapMapWherePlaceIs
+                  : context.l10n.positionChosen),
           style: theme.textTheme.bodySmall?.copyWith(
             color: error == null ? null : theme.colorScheme.error,
           ),

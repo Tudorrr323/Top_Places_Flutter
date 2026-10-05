@@ -15,7 +15,7 @@ class AccountViewModel extends ChangeNotifier {
 
   Profile? _profile;
   bool _busy = false;
-  String? _error;
+  AccountException? _error;
 
   bool get isAvailable => _service != null;
 
@@ -26,7 +26,7 @@ class AccountViewModel extends ChangeNotifier {
   bool get isBusy => _busy;
 
   /// What went wrong in the last action, or null.
-  String? get error => _error;
+  AccountException? get error => _error;
 
   /// Loads the profile again, e.g. after an admin changed it.
   Future<bool> refresh() => _run(() async {
@@ -80,7 +80,7 @@ class AccountViewModel extends ChangeNotifier {
       await action();
       return true;
     } on AccountException catch (error) {
-      _error = error.message;
+      _error = error;
       return false;
     } finally {
       _busy = false;

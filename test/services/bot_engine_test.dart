@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:top_places/l10n/app_localizations.dart';
 import 'package:top_places/models/chat_message.dart';
 import 'package:top_places/services/bot_engine.dart';
 import 'package:top_places/services/places_repository.dart';
@@ -12,8 +14,11 @@ void main() {
   );
 
   /// A new assistant for every test, so no test sees another's conversation.
-  BotEngine newBot() =>
-      BotEngine(places: repository.places, cities: repository.cities);
+  BotEngine newBot([String language = 'ro']) => BotEngine(
+    places: repository.places,
+    cities: repository.cities,
+    l10n: lookupAppLocalizations(Locale(language)),
+  );
 
   /// The place an answer shows on the map, or null.
   String? placeIn(ChatMessage answer) => switch (answer.action) {
@@ -108,6 +113,35 @@ void main() {
       final answer = newBot().reply('Vreau sushi');
       expect(answer.text, startsWith('Din păcate'));
       expect(answer.action, isNull);
+    });
+  });
+
+  group('in English', () {
+    test('it answers in English', () {
+      expect(newBot('en').reply('Hello!').text, startsWith('Hi!'));
+      expect(newBot('en').reply('How do I book?').text, contains('WhatsApp'));
+    });
+
+    test('it understands what someone wants, and where', () {
+      final answer = newBot('en').reply('I want a drink in Cluj-Napoca');
+      expect(answer.text, startsWith('In Cluj-Napoca you can have a drink at'));
+      expect(cityIn(answer), 'Cluj-Napoca');
+    });
+
+    test('it asks for the city, and remembers the question', () {
+      final bot = newBot('en');
+      expect(bot.reply('Where can I eat?').text, contains('In which city'));
+      expect(cityIn(bot.reply('Iasi')), 'Iași');
+    });
+
+    test('it finds a place by its name', () {
+      expect(placeIn(newBot('en').reply('Find Burger Shack')), 'Burger Shack');
+    });
+
+    test('the best coffee', () {
+      final answer = newBot('en').reply('The best coffee');
+      expect(answer.text, contains('with the best rating'));
+      expect(placeIn(answer), isNotNull);
     });
   });
 }

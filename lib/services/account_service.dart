@@ -8,14 +8,32 @@ const supabasePublishableKey = String.fromEnvironment(
   'SUPABASE_PUBLISHABLE_KEY',
 );
 
-/// A failed account action, with a message the user can act on.
-class AccountException implements Exception {
-  const AccountException(this.message);
+/// What went wrong with an account action.
+enum AccountProblem {
+  signInAgain,
+  wrongCredentials,
+  emailNotConfirmed,
+  tooManyEmails,
+  weakPassword,
+  invalidEmail,
+  emailTaken,
+  notSaved,
+  failed,
+  offline,
+}
 
-  final String message;
+/// A failed account action. The screen says what went wrong, in its
+/// language.
+class AccountException implements Exception {
+  const AccountException(this.problem, [this.detail]);
+
+  final AccountProblem problem;
+
+  /// What Supabase said, for the problems it does not name.
+  final String? detail;
 
   @override
-  String toString() => message;
+  String toString() => 'AccountException($problem, $detail)';
 }
 
 /// What an admin changes about an account. The database checks the rest:
@@ -160,7 +178,7 @@ class SupabaseAccountService implements AccountService {
   Future<Profile> _updateOwnProfile(Map<String, Object> values) async {
     final user = _client.auth.currentUser;
     if (user == null) {
-      throw const AccountException('Intră din nou în cont.');
+      throw const AccountException(AccountProblem.signInAgain);
     }
     final row = await _guard(
       () => _client
@@ -178,31 +196,29 @@ class SupabaseAccountService implements AccountService {
     try {
       return await action();
     } on AuthException catch (error) {
-      throw AccountException(authErrorMessage(error));
+      throw authError(error);
     } on PostgrestException catch (error) {
-      throw AccountException('Nu am putut salva: ${error.message}');
+      throw AccountException(AccountProblem.notSaved, error.message);
     } on Exception {
-      throw const AccountException(_offline);
+      throw const AccountException(AccountProblem.offline);
     }
   }
 }
 
-const _offline = 'Nu mă pot conecta. Verifică internetul și încearcă din nou.';
-
-/// Romanian messages for the errors that people can cause themselves.
-String authErrorMessage(AuthException error) {
-  if (error is AuthRetryableFetchException) return _offline;
-  return switch (error.code) {
-    'invalid_credentials' => 'Email sau parolă greșite.',
-    'email_not_confirmed' =>
-      'Încă nu ți-ai confirmat emailul. Deschide linkul din emailul '
-          'primit, apoi încearcă din nou.',
-    'over_email_send_rate_limit' =>
-      'S-au trimis prea multe emailuri. Încearcă din nou peste o oră.',
-    'weak_password' => 'Parola e prea slabă. Alege una mai lungă.',
-    'email_address_invalid' => 'Adresa de email nu e acceptată.',
-    'user_already_exists' ||
-    'email_exists' => 'Există deja un cont cu acest email.',
-    _ => 'Nu a mers: ${error.message}',
+/// The problem behind an error of Supabase Auth: the ones people can cause
+/// themselves have a name.
+AccountException authError(AuthException error) {
+  if (error is AuthRetryableFetchException) {
+    return const AccountException(AccountProblem.offline);
+  }
+  final problem = switch (error.code) {
+    'invalid_credentials' => AccountProblem.wrongCredentials,
+    'email_not_confirmed' => AccountProblem.emailNotConfirmed,
+    'over_email_send_rate_limit' => AccountProblem.tooManyEmails,
+    'weak_password' => AccountProblem.weakPassword,
+    'email_address_invalid' => AccountProblem.invalidEmail,
+    'user_already_exists' || 'email_exists' => AccountProblem.emailTaken,
+    _ => AccountProblem.failed,
   };
+  return AccountException(problem, error.message);
 }

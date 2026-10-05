@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:top_places/l10n/l10n.dart';
 import 'package:top_places/models/filters.dart';
 
 /// The "Filtrează & Sortează" sheet. It returns the chosen [Filters] when the
@@ -22,23 +23,22 @@ class _FilterSheetState extends State<FilterSheet> {
   late double _minRating = widget.initial.minRating;
   late SortBy _sortBy = widget.initial.sortBy;
 
-  static const _ratingChoices = [
-    (0.0, 'Oricare'),
-    (4.0, '4.0+'),
-    (4.5, '4.5+'),
-    (4.8, '4.8+'),
-  ];
-
-  static const _sortChoices = [
-    (SortBy.recommended, 'Recomandat'),
-    (SortBy.ratingDescending, 'Rating ↓'),
-    (SortBy.ratingAscending, 'Rating ↑'),
-    (SortBy.nameAscending, 'Nume (A-Z)'),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final l10n = context.l10n;
+    final ratingChoices = [
+      (0.0, l10n.filtersAnyRating),
+      (4.0, '4.0+'),
+      (4.5, '4.5+'),
+      (4.8, '4.8+'),
+    ];
+    final sortChoices = [
+      (SortBy.recommended, l10n.sortRecommended),
+      (SortBy.ratingDescending, l10n.sortRatingDown),
+      (SortBy.ratingAscending, l10n.sortRatingUp),
+      (SortBy.nameAscending, l10n.sortName),
+    ];
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -46,14 +46,14 @@ class _FilterSheetState extends State<FilterSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Filtrează & Sortează', style: textTheme.titleLarge),
+            Text(l10n.filtersTitle, style: textTheme.titleLarge),
             const SizedBox(height: 16),
-            Text('Oraș', style: textTheme.titleMedium),
+            Text(l10n.filtersCity, style: textTheme.titleMedium),
             Wrap(
               spacing: 8,
               children: [
                 ChoiceChip(
-                  label: const Text('Toate'),
+                  label: Text(l10n.filtersAllCities),
                   selected: _city == null,
                   onSelected: (_) => setState(() => _city = null),
                 ),
@@ -66,11 +66,11 @@ class _FilterSheetState extends State<FilterSheet> {
               ],
             ),
             const SizedBox(height: 16),
-            Text('Rating minim', style: textTheme.titleMedium),
+            Text(l10n.filtersMinRating, style: textTheme.titleMedium),
             Wrap(
               spacing: 8,
               children: [
-                for (final (rating, label) in _ratingChoices)
+                for (final (rating, label) in ratingChoices)
                   ChoiceChip(
                     label: Text(label),
                     selected: _minRating == rating,
@@ -79,11 +79,11 @@ class _FilterSheetState extends State<FilterSheet> {
               ],
             ),
             const SizedBox(height: 16),
-            Text('Sortare', style: textTheme.titleMedium),
+            Text(l10n.filtersSort, style: textTheme.titleMedium),
             Wrap(
               spacing: 8,
               children: [
-                for (final (sortBy, label) in _sortChoices)
+                for (final (sortBy, label) in sortChoices)
                   ChoiceChip(
                     label: Text(label),
                     selected: _sortBy == sortBy,
@@ -101,7 +101,7 @@ class _FilterSheetState extends State<FilterSheet> {
               children: [
                 TextButton(
                   onPressed: () => Navigator.pop(context, const Filters()),
-                  child: const Text('Resetează'),
+                  child: Text(l10n.filtersReset),
                 ),
                 FilledButton(
                   onPressed: () => Navigator.pop(
@@ -112,7 +112,7 @@ class _FilterSheetState extends State<FilterSheet> {
                       sortBy: _sortBy,
                     ),
                   ),
-                  child: const Text('Aplică filtre'),
+                  child: Text(l10n.filtersApply),
                 ),
               ],
             ),

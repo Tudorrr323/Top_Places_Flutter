@@ -2,14 +2,28 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:top_places/models/place.dart';
 import 'package:top_places/models/rating.dart';
 
-/// A failed action on places, with a message the user can act on.
-class PlaceException implements Exception {
-  const PlaceException(this.message);
+/// What went wrong with an action on places.
+enum PlaceProblem {
+  signInToReview,
+  cannotDeleteReview,
+  invalidFields,
+  notAllowed,
+  notSaved,
+  offline,
+}
 
-  final String message;
+/// A failed action on places. The screen says what went wrong, in its
+/// language.
+class PlaceException implements Exception {
+  const PlaceException(this.problem, [this.detail]);
+
+  final PlaceProblem problem;
+
+  /// What Supabase said, for the problems it does not name.
+  final String? detail;
 
   @override
-  String toString() => message;
+  String toString() => 'PlaceException($problem, $detail)';
 }
 
 /// What an operator fills in for a place. The rest (owner, status) is
@@ -23,6 +37,7 @@ class PlaceDraft {
     required this.lng,
     required this.imageUrl,
     required this.description,
+    required this.descriptionRo,
   });
 
   final String name;
@@ -31,7 +46,12 @@ class PlaceDraft {
   final double lat;
   final double lng;
   final String imageUrl;
+
+  /// The description in English.
   final String description;
+
+  /// The description in Romanian.
+  final String descriptionRo;
 
   Map<String, Object> toRow() => {
     'name': name.trim(),
@@ -41,6 +61,7 @@ class PlaceDraft {
     'lng': lng,
     'image_url': imageUrl.trim(),
     'description': description.trim(),
+    'description_ro': descriptionRo.trim(),
   };
 }
 
@@ -202,7 +223,7 @@ class SupabasePlaceService implements PlaceService {
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) {
-      throw const PlaceException('Intră în cont ca să scrii o recenzie.');
+      throw const PlaceException(PlaceProblem.signInToReview);
     }
     final message = comment.trim();
     // One row per account and place: writing again changes it.
@@ -233,7 +254,7 @@ class SupabasePlaceService implements PlaceService {
     );
     // Nothing deleted: the rules do not allow it.
     if (rows.isEmpty) {
-      throw const PlaceException('Nu ai voie să ștergi această recenzie.');
+      throw const PlaceException(PlaceProblem.cannotDeleteReview);
     }
   }
 
@@ -285,19 +306,15 @@ class SupabasePlaceService implements PlaceService {
     try {
       return await action();
     } on PostgrestException catch (error) {
-      throw PlaceException(switch (error.code) {
+      throw switch (error.code) {
         // A check in the table refused a value.
-        '23514' =>
-          'Unele câmpuri nu sunt valide. Verifică-le și încearcă din '
-              'nou.',
+        '23514' => const PlaceException(PlaceProblem.invalidFields),
         // No row matched: the rules do not allow it (e.g. a suspension).
-        'PGRST116' || '42501' => 'Nu ai voie să faci această modificare.',
-        _ => 'Nu am putut salva: ${error.message}',
-      });
+        'PGRST116' || '42501' => const PlaceException(PlaceProblem.notAllowed),
+        _ => PlaceException(PlaceProblem.notSaved, error.message),
+      };
     } on Exception {
-      throw const PlaceException(
-        'Nu mă pot conecta. Verifică internetul și încearcă din nou.',
-      );
+      throw const PlaceException(PlaceProblem.offline);
     }
   }
 }

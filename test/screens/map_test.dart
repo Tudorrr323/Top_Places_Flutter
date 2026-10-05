@@ -243,7 +243,7 @@ void main() {
         const Size(400, 900),
         location: FakeLocationService(
           error: LocationException(
-            'Ai refuzat localizarea pentru Top Places.',
+            LocationProblem.deniedForever,
             openSettings: () async => opened = true,
           ),
         ),
@@ -253,12 +253,98 @@ void main() {
 
       await tester.tap(find.byTooltip('Arată-mi locația'));
       await tester.pumpAndSettle();
-      expect(find.text('Ai refuzat localizarea pentru Top Places.'), findsOne);
+      expect(
+        find.text(
+          'Ai refuzat localizarea pentru Top Places. O poți permite din '
+          'setările aplicației.',
+        ),
+        findsOne,
+      );
 
       await tester.tap(find.text('Setări'));
       await tester.pumpAndSettle();
       expect(opened, isTrue);
       expect(find.bySemanticsLabel('Locația ta'), findsNothing);
+    });
+  });
+
+  group('the search over the map', () {
+    const burgers = LatLng(44.4449, 26.1103);
+
+    MapCamera camera(WidgetTester tester) => tester
+        .widget<FlutterMap>(find.byType(FlutterMap))
+        .mapController!
+        .camera;
+
+    Future<void> openMap(WidgetTester tester) async {
+      await startApp(tester, const Size(400, 900));
+      await tester.tap(find.byTooltip('Arată harta'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('suggests places, and the map stays where it is', (
+      tester,
+    ) async {
+      await openMap(tester);
+      final before = camera(tester);
+
+      await tester.enterText(find.byType(TextField), 'burger');
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(ListTile, 'Burger Shack'), findsOneWidget);
+      expect(camera(tester).center, before.center);
+      expect(camera(tester).zoom, before.zoom);
+    });
+
+    testWidgets('a suggestion flies the map to the place and opens it', (
+      tester,
+    ) async {
+      await openMap(tester);
+      await tester.enterText(find.byType(TextField), 'burger');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(ListTile, 'Burger Shack'));
+      await tester.pumpAndSettle();
+
+      final now = camera(tester);
+      expect(now.zoom, greaterThanOrEqualTo(17));
+      expect(now.center.latitude, closeTo(burgers.latitude, 0.005));
+      expect(now.center.longitude, closeTo(burgers.longitude, 0.005));
+      expect(
+        find.descendant(
+          of: find.byType(DraggableScrollableSheet),
+          matching: find.text('Burger Shack'),
+        ),
+        findsOneWidget,
+      );
+      // The search did its job: it is empty again.
+      expect(find.widgetWithText(TextField, 'burger'), findsNothing);
+    });
+
+    testWidgets('over the list, the list shows what matches', (tester) async {
+      await startApp(tester, const Size(400, 900));
+
+      await tester.enterText(find.byType(TextField), 'burger');
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ListTile), findsNothing);
+      expect(find.text('1 rezultat'), findsOneWidget);
+    });
+
+    testWidgets('in a wide window, a card flies the map beside it', (
+      tester,
+    ) async {
+      await startApp(tester, const Size(1400, 900));
+
+      await tester.enterText(find.byType(TextField), 'burger');
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(PlaceCard));
+      await tester.pumpAndSettle();
+
+      expect(camera(tester).center.latitude, closeTo(burgers.latitude, 0.005));
+      expect(find.byType(DraggableScrollableSheet), findsOneWidget);
+      // The list keeps its search.
+      expect(find.text('1 rezultat'), findsOneWidget);
     });
   });
 }

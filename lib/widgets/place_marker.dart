@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:top_places/l10n/l10n.dart';
 import 'package:top_places/models/place.dart';
-import 'package:top_places/utils/plural.dart';
 
 /// A place on the map: a circle with its rating, filled red when selected.
 class PlaceMarker extends StatelessWidget {
@@ -18,13 +18,13 @@ class PlaceMarker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final rating = place.ratingText;
+    final rating = context.l10n.placeRating(place);
 
     return Tooltip(
       message: place.name,
       // What a screen reader says, instead of only "4.7".
       child: Semantics(
-        label: '${place.name}, ${place.ratingLabel}',
+        label: '${place.name}, ${context.l10n.placeRatingLabel(place)}',
         button: true,
         selected: selected,
         onTap: onTap,
@@ -64,12 +64,12 @@ class ClusterMarker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final label = countLabel(places.length, 'local', 'localuri');
+    final label = context.l10n.placeCount(places.length);
 
     return Tooltip(
       message: label,
       child: Semantics(
-        label: '$label aici. Apasă ca să apropii harta.',
+        label: context.l10n.clusterLabel(label),
         button: true,
         onTap: onTap,
         excludeSemantics: true,

@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:top_places/app.dart';
 import 'package:top_places/services/gemini_service.dart';
 import 'package:top_places/services/places_repository.dart';
+import 'package:top_places/widgets/place_marker.dart';
 
 import '../fake_gemini.dart';
 
@@ -55,10 +56,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(FlutterMap), findsOneWidget);
-    expect(find.text('3 rezultate'), findsOneWidget);
+    // The city is a filter, said in words over the map.
+    expect(find.text('Filtre active'), findsOneWidget);
+    // Its 3 places, with a marker each or in a bubble.
+    final alone = find.byType(PlaceMarker).evaluate().length;
+    final grouped = tester
+        .widgetList<ClusterMarker>(find.byType(ClusterMarker))
+        .fold(0, (sum, bubble) => sum + bubble.places.length);
+    expect(alone + grouped, 3);
   });
 
-  testWidgets('a place found by the assistant goes into the search bar', (
+  testWidgets('a place found by the assistant opens on the map', (
     tester,
   ) async {
     await openChat(tester);
@@ -68,8 +76,14 @@ void main() {
     await tester.tap(find.text('Arată pe hartă'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Burger Shack'), findsOneWidget);
-    expect(find.text('1 rezultat'), findsOneWidget);
+    expect(find.byType(FlutterMap), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(DraggableScrollableSheet),
+        matching: find.text('Burger Shack'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('with a key, Gemini answers what the rules do not understand', (

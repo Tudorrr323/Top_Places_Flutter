@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:top_places/l10n/l10n.dart';
 import 'package:top_places/models/place.dart';
 import 'package:top_places/models/profile.dart';
 import 'package:top_places/models/rating.dart';
 import 'package:top_places/services/place_service.dart';
 import 'package:top_places/services/places_repository.dart';
-import 'package:top_places/utils/plural.dart';
 import 'package:top_places/view_models/account_view_model.dart';
 import 'package:top_places/widgets/dialogs.dart';
 
@@ -20,6 +20,7 @@ class PlaceReviews extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     final account = context.watch<AccountViewModel>();
     // Reviews need the accounts and the places in Supabase.
     final available =
@@ -35,15 +36,15 @@ class PlaceReviews extends StatelessWidget {
               color: theme.colorScheme.primary,
             ),
             const SizedBox(width: 8),
-            Text(place.ratingText, style: theme.textTheme.headlineSmall),
+            Text(l10n.placeRating(place), style: theme.textTheme.headlineSmall),
             const SizedBox(width: 12),
-            Expanded(child: Text(_ratingSource(place))),
+            Expanded(child: Text(_ratingSource(l10n, place))),
           ],
         ),
         const SizedBox(height: 16),
         if (!available)
           Text(
-            'Recenziile se văd doar când aplicația e conectată la Supabase.',
+            l10n.reviewsNeedSupabase,
             style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
           )
         else ...[
@@ -62,14 +63,13 @@ class PlaceReviews extends StatelessWidget {
   }
 
   /// What the rating is made of.
-  static String _ratingSource(Place place) => switch (place.ratingCount) {
-    0 when place.isRated =>
-      'Ratingul vine din aplicația originală, până la primele recenzii.',
-    0 => 'Nicio recenzie încă.',
-    1 => 'Ratingul vine dintr-o singură recenzie.',
-    final count =>
-      'Ratingul e media celor ${countLabel(count, 'recenzie', 'recenzii')}.',
-  };
+  static String _ratingSource(AppLocalizations l10n, Place place) =>
+      switch (place.ratingCount) {
+        0 when place.isRated => l10n.ratingFromOldApp,
+        0 => l10n.noReviewsYet,
+        1 => l10n.ratingFromOneReview,
+        final count => l10n.ratingAverage(count),
+      };
 }
 
 /// "Recenzia ta". Without a review, a form to write one. Once sent, the
@@ -107,30 +107,30 @@ class _MyReviewState extends State<_MyReview> {
   bool _busy = false;
 
   /// Why this account cannot write a review here, or null when it can.
-  String? get _cannotWrite {
+  String? _cannotWrite(AppLocalizations l10n) {
     final me = widget.me;
-    if (me == null) {
-      return 'Intră în cont, din tab-ul Profil, ca să scrii o recenzie.';
-    }
-    if (me.isSuspended) {
-      return 'Contul tău e suspendat: nu poți scrie recenzii.';
-    }
-    if (widget.place.ownerId == me.id) {
-      return 'Nu poți scrie recenzii la propriul local.';
-    }
+    if (me == null) return l10n.reviewSignInFirst;
+    if (me.isSuspended) return l10n.reviewSuspended;
+    if (widget.place.ownerId == me.id) return l10n.reviewOwnPlace;
     return null;
+  }
+
+  /// True when this account can write a review here.
+  bool get _canWrite {
+    final me = widget.me;
+    return me != null && !me.isSuspended && widget.place.ownerId != me.id;
   }
 
   /// When a waiting review becomes public: once the place's operator
   /// accepts it, or an admin for a place without one.
   String get _whenAccepted => widget.place.ownerId == null
-      ? 'Apare după ce o acceptă un administrator.'
-      : 'Apare după ce o acceptă operatorul localului.';
+      ? context.l10n.reviewAcceptedByAdmin
+      : context.l10n.reviewAcceptedByOperator;
 
   /// When a review sent from this form becomes public. The database decides
   /// the same way: an admin's review is public at once.
   String get _whenPublic => widget.me?.role == Role.admin
-      ? 'Ca administrator, recenzia ta apare imediat.'
+      ? context.l10n.reviewAdminAtOnce
       : _whenAccepted;
 
   /// True when the form differs from the saved review: there is something
@@ -143,7 +143,7 @@ class _MyReviewState extends State<_MyReview> {
   @override
   void initState() {
     super.initState();
-    if (_cannotWrite == null) {
+    if (_canWrite) {
       _loading = true;
       _load();
     }
@@ -181,6 +181,7 @@ class _MyReviewState extends State<_MyReview> {
     final service = context.read<PlaceService?>()!;
     final repository = context.read<PlacesRepository>();
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
     setState(() => _busy = true);
     try {
       final saved = await service.saveRating(
@@ -193,14 +194,14 @@ class _MyReviewState extends State<_MyReview> {
         SnackBar(
           content: Text(
             saved.status == RatingStatus.approved
-                ? 'Recenzia ta a fost publicată.'
-                : 'Recenzia ta a fost trimisă și e în așteptare.',
+                ? l10n.reviewPublished
+                : l10n.reviewSentWaiting,
           ),
         ),
       );
       await repository.refresh();
     } on PlaceException catch (error) {
-      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+      messenger.showSnackBar(SnackBar(content: Text(l10n.placeError(error))));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -209,21 +210,22 @@ class _MyReviewState extends State<_MyReview> {
   Future<void> _delete() async {
     final confirmed = await askConfirmation(
       context,
-      title: 'Ștergi recenzia?',
-      message: 'Nota și mesajul tău dispar de pe pagina localului.',
-      action: 'Șterge',
+      title: context.l10n.deleteReviewTitle,
+      message: context.l10n.deleteReviewMessage,
+      action: context.l10n.delete,
     );
     if (!confirmed || !mounted) return;
     final service = context.read<PlaceService?>()!;
     final repository = context.read<PlacesRepository>();
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
     setState(() => _busy = true);
     try {
       await service.deleteRating(_saved!);
       if (mounted) setState(() => _show(null));
       await repository.refresh();
     } on PlaceException catch (error) {
-      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+      messenger.showSnackBar(SnackBar(content: Text(l10n.placeError(error))));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -232,7 +234,7 @@ class _MyReviewState extends State<_MyReview> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cannotWrite = _cannotWrite;
+    final cannotWrite = _cannotWrite(context.l10n);
     final saved = _saved;
 
     return Column(
@@ -240,7 +242,10 @@ class _MyReviewState extends State<_MyReview> {
       children: [
         Semantics(
           header: true,
-          child: Text('Recenzia ta', style: theme.textTheme.titleMedium),
+          child: Text(
+            context.l10n.yourReview,
+            style: theme.textTheme.titleMedium,
+          ),
         ),
         const SizedBox(height: 4),
         if (cannotWrite != null)
@@ -261,22 +266,23 @@ class _MyReviewState extends State<_MyReview> {
   /// The review as sent, with where it is and what can be done with it.
   Widget _savedReview(Rating saved) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     final comment = saved.comment;
     final (icon, status, explanation) = switch (saved.status) {
       RatingStatus.pending => (
         Icons.schedule,
-        'În așteptare',
-        '$_whenAccepted Până atunci o vezi doar tu.',
+        l10n.reviewPending,
+        l10n.reviewPendingExplanation(_whenAccepted),
       ),
       RatingStatus.approved => (
         Icons.check_circle_outline,
-        'Publicată',
-        'O vede oricine deschide localul.',
+        l10n.reviewApproved,
+        l10n.reviewApprovedExplanation,
       ),
       RatingStatus.rejected => (
         Icons.block,
-        'Respinsă',
-        'Motiv: ${saved.statusReason}. O poți modifica și trimite din nou.',
+        l10n.reviewRejected,
+        l10n.reviewRejectedExplanation(saved.statusReason ?? ''),
       ),
     };
 
@@ -306,14 +312,14 @@ class _MyReviewState extends State<_MyReview> {
                 children: [
                   TextButton(
                     onPressed: _busy ? null : _delete,
-                    child: const Text('Șterge recenzia'),
+                    child: Text(l10n.deleteReview),
                   ),
                   if (saved.status == RatingStatus.rejected)
                     FilledButton.tonal(
                       onPressed: _busy
                           ? null
                           : () => setState(() => _editing = true),
-                      child: const Text('Modifică'),
+                      child: Text(l10n.editReview),
                     ),
                 ],
               ),
@@ -327,6 +333,7 @@ class _MyReviewState extends State<_MyReview> {
   /// The stars and the message, for a new review or a rejected one.
   Widget _form() {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
     final stars = _stars;
 
     return Column(
@@ -334,16 +341,15 @@ class _MyReviewState extends State<_MyReview> {
       children: [
         Text(
           _editing
-              ? 'Schimbă ce trebuie, apoi trimite din nou. $_whenPublic'
-              : 'Alege stelele și, dacă vrei, scrie câteva cuvinte. '
-                    '$_whenPublic',
+              ? l10n.reviewEditIntro(_whenPublic)
+              : l10n.reviewNewIntro(_whenPublic),
           style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
         ),
         Row(
           children: [
             for (var star = 1; star <= 5; star++)
               IconButton(
-                tooltip: Rating.starsText(star),
+                tooltip: l10n.stars(star),
                 isSelected: stars != null && star <= stars,
                 icon: const Icon(Icons.star_border),
                 selectedIcon: const Icon(Icons.star),
@@ -359,9 +365,9 @@ class _MyReviewState extends State<_MyReview> {
           minLines: 2,
           maxLines: 5,
           textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(
-            labelText: 'Mesaj (opțional)',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: l10n.reviewMessage,
+            border: const OutlineInputBorder(),
           ),
           // The send button follows what is typed.
           onChanged: (_) => setState(() {}),
@@ -374,11 +380,11 @@ class _MyReviewState extends State<_MyReview> {
               if (_editing)
                 TextButton(
                   onPressed: _busy ? null : () => setState(() => _show(_saved)),
-                  child: const Text('Renunță'),
+                  child: Text(l10n.cancel),
                 ),
               FilledButton(
                 onPressed: _busy || !_changed ? null : _send,
-                child: Text(_editing ? 'Trimite din nou' : 'Trimite recenzia'),
+                child: Text(_editing ? l10n.sendAgain : l10n.sendReview),
               ),
             ],
           ),
@@ -431,7 +437,10 @@ class _PublicReviewsState extends State<_PublicReviews> {
       children: [
         Semantics(
           header: true,
-          child: Text('Ce spun ceilalți', style: theme.textTheme.titleMedium),
+          child: Text(
+            context.l10n.othersSay,
+            style: theme.textTheme.titleMedium,
+          ),
         ),
         const SizedBox(height: 8),
         FutureBuilder(
@@ -449,7 +458,7 @@ class _PublicReviewsState extends State<_PublicReviews> {
                 if (!rating.mine) rating,
             ];
             if (others.isEmpty) {
-              return Text('Nicio recenzie publicată încă.', style: muted);
+              return Text(context.l10n.noPublishedReviews, style: muted);
             }
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -485,7 +494,7 @@ class _ReviewTile extends StatelessWidget {
                 child: Text(rating.author, style: theme.textTheme.titleSmall),
               ),
               Text(
-                rating.dateText,
+                context.l10n.date(rating.updatedAt),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -514,7 +523,7 @@ class _Stars extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: Rating.starsText(stars),
+      label: context.l10n.stars(stars),
       excludeSemantics: true,
       child: Row(
         children: [

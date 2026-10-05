@@ -5,6 +5,11 @@ import 'package:top_places/models/place.dart';
 import 'package:top_places/utils/place_search.dart';
 import 'package:top_places/utils/text_normalize.dart';
 
+/// Something to show on the map, asked for from elsewhere: [place] to move
+/// to and open or, when null, every place left after new filters. [number]
+/// grows with each request, so that the map answers each one once.
+typedef MapRequest = ({int number, Place? place});
+
 /// The state of the Explore tab: the search text and the filters.
 /// Widgets that watch it rebuild every time it calls notifyListeners().
 class ExploreViewModel extends ChangeNotifier {
@@ -14,12 +19,25 @@ class ExploreViewModel extends ChangeNotifier {
   String _query = '';
   Filters _filters = const Filters();
   bool _showMap = false;
+  MapRequest? _mapRequest;
+  int _requests = 0;
 
   String get query => _query;
   Filters get filters => _filters;
 
   /// On narrow screens: true shows the map, false the list.
   bool get showMap => _showMap;
+
+  /// What the map should show next, or null once it has shown it. Typing in
+  /// the search bar asks for nothing: the map stays where it is.
+  MapRequest? get mapRequest => _mapRequest;
+
+  /// Called by the map once it has shown [mapRequest].
+  void mapRequestShown() => _mapRequest = null;
+
+  void _requestMap([Place? place]) {
+    _mapRequest = (number: ++_requests, place: place);
+  }
 
   /// The places to show, after the search text, the filters and the sorting.
   List<Place> get visiblePlaces =>
@@ -48,6 +66,8 @@ class ExploreViewModel extends ChangeNotifier {
 
   void applyFilters(Filters value) {
     _filters = value;
+    // The map shows the places that are left.
+    _requestMap();
     notifyListeners();
   }
 
@@ -58,19 +78,40 @@ class ExploreViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Shows on the map what the assistant found: one place, searched by its
-  /// name, or every place in a city. The old search and filters go, so they
-  /// can't hide the result (in the old app the button then did nothing).
+  /// The places whose name, address or city match [text], for the
+  /// suggestions under the search bar. The filters do not hide any:
+  /// choosing one shows it anyway.
+  List<Place> suggestionsFor(String text) => text.trim().isEmpty
+      ? const []
+      : searchPlaces(_allPlaces, query: text).take(6).toList();
+
+  /// Shows [place] on the map, which moves to it from where it is and opens
+  /// it. A search or filters that would hide the place go.
+  void focusPlace(Place place) {
+    if (!visiblePlaces.contains(place)) {
+      _query = '';
+      if (!searchPlaces(_allPlaces, filters: _filters).contains(place)) {
+        _filters = const Filters();
+      }
+    }
+    _showMap = true;
+    _requestMap(place);
+    notifyListeners();
+  }
+
+  /// Shows on the map what the assistant found: one place, or every place
+  /// in a city. Nothing from before can hide the result (in the old app the
+  /// button then did nothing).
   void showOnMap(ChatAction action) {
     switch (action) {
       case ShowPlace(:final place):
-        _query = place.name;
-        _filters = const Filters();
+        focusPlace(place);
       case ShowCity(:final city):
         _query = '';
         _filters = Filters(city: city);
+        _showMap = true;
+        _requestMap();
+        notifyListeners();
     }
-    _showMap = true;
-    notifyListeners();
   }
 }

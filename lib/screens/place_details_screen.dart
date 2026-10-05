@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:top_places/l10n/l10n.dart';
 import 'package:top_places/models/place.dart';
 import 'package:top_places/screens/not_found_screen.dart';
 import 'package:top_places/services/places_repository.dart';
@@ -122,13 +123,13 @@ class _Header extends StatelessWidget {
           const SizedBox(width: 12),
           // Read as "4.7 stele" instead of only "4.7".
           Semantics(
-            label: place.ratingLabel,
+            label: context.l10n.placeRatingLabel(place),
             excludeSemantics: true,
             child: Chip(
               avatar: Icon(
                 place.isRated ? Icons.star : Icons.fiber_new_outlined,
               ),
-              label: Text(place.ratingText),
+              label: Text(context.l10n.placeRating(place)),
             ),
           ),
         ],

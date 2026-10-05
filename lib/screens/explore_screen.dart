@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:top_places/l10n/l10n.dart';
 import 'package:top_places/models/filters.dart';
 import 'package:top_places/models/place.dart';
-import 'package:top_places/utils/plural.dart';
 import 'package:top_places/view_models/explore_view_model.dart';
 import 'package:top_places/widgets/filter_sheet.dart';
 import 'package:top_places/widgets/place_card.dart';
+import 'package:top_places/widgets/place_photo.dart';
 import 'package:top_places/widgets/places_map.dart';
 
 /// The Explore tab. Narrow screens show the list or the map, wide windows
@@ -20,6 +21,7 @@ class ExploreScreen extends StatefulWidget {
 class _ExploreScreenState extends State<ExploreScreen> {
   // Holds the text of the search bar. Created once, disposed with the screen.
   final _searchController = TextEditingController();
+  final _searchFocus = FocusNode();
   late final ExploreViewModel _viewModel;
 
   @override
@@ -35,6 +37,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   void dispose() {
     _viewModel.removeListener(_showQuery);
     _searchController.dispose();
+    _searchFocus.dispose();
     super.dispose();
   }
 
@@ -47,6 +50,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
   void _clearSearch() {
     _searchController.clear();
     context.read<ExploreViewModel>().setQuery('');
+  }
+
+  /// A suggestion was chosen: the search did its job, and the map goes to
+  /// the place.
+  void _goToSuggestion(Place place) {
+    _searchFocus.unfocus();
+    _clearSearch();
+    context.read<ExploreViewModel>().focusPlace(place);
   }
 
   Future<void> _openFilters() async {
@@ -83,7 +94,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                     child: _buildPanel(viewModel, places, isWide: true),
                   ),
                   const VerticalDivider(width: 1),
-                  Expanded(child: PlacesMap(places: places)),
+                  Expanded(child: _buildMap(viewModel, places)),
                 ],
               );
             }
@@ -115,24 +126,46 @@ class _ExploreScreenState extends State<ExploreScreen> {
           child: Row(
             children: [
               Expanded(
-                child: SearchBar(
-                  controller: _searchController,
-                  hintText: 'Caută locații sau orașe...',
-                  leading: const Icon(Icons.search),
-                  trailing: [
-                    if (viewModel.query.isNotEmpty)
-                      IconButton(
-                        tooltip: 'Șterge căutarea',
-                        icon: const Icon(Icons.close),
-                        onPressed: _clearSearch,
+                // Over the map, the places found show as suggestions under
+                // the search bar, and the map stays where it is. Over the
+                // list there are none: the list itself shows what matches.
+                child: RawAutocomplete<Place>(
+                  textEditingController: _searchController,
+                  focusNode: _searchFocus,
+                  optionsBuilder: (value) => !isWide && viewModel.showMap
+                      ? viewModel.suggestionsFor(value.text)
+                      : const <Place>[],
+                  displayStringForOption: (place) => place.name,
+                  onSelected: _goToSuggestion,
+                  fieldViewBuilder:
+                      (context, controller, focusNode, onSubmitted) =>
+                          SearchBar(
+                            controller: controller,
+                            focusNode: focusNode,
+                            hintText: context.l10n.searchHint,
+                            leading: const Icon(Icons.search),
+                            trailing: [
+                              if (viewModel.query.isNotEmpty)
+                                IconButton(
+                                  tooltip: context.l10n.clearSearch,
+                                  icon: const Icon(Icons.close),
+                                  onPressed: _clearSearch,
+                                ),
+                            ],
+                            onChanged: viewModel.setQuery,
+                            // Enter picks the highlighted suggestion.
+                            onSubmitted: (_) => onSubmitted(),
+                          ),
+                  optionsViewBuilder: (context, onSelected, places) =>
+                      _Suggestions(
+                        places: places.toList(),
+                        onSelected: onSelected,
                       ),
-                  ],
-                  onChanged: viewModel.setQuery,
                 ),
               ),
               const SizedBox(width: 8),
               IconButton.filledTonal(
-                tooltip: 'Filtrează și sortează',
+                tooltip: context.l10n.filterTooltip,
                 onPressed: _openFilters,
                 icon: Badge(
                   isLabelVisible: viewModel.filters.isActive,
@@ -143,7 +176,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
               if (!isWide) ...[
                 const SizedBox(width: 8),
                 IconButton.filledTonal(
-                  tooltip: viewModel.showMap ? 'Arată lista' : 'Arată harta',
+                  tooltip: viewModel.showMap
+                      ? context.l10n.showList
+                      : context.l10n.showMap,
                   onPressed: viewModel.toggleMap,
                   icon: Icon(
                     viewModel.showMap ? Icons.view_list : Icons.map_outlined,
@@ -153,20 +188,22 @@ class _ExploreScreenState extends State<ExploreScreen> {
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Locații',
-                  style: Theme.of(context).textTheme.titleLarge,
+        // Over the list only: the map shows the places themselves.
+        if (isWide || !viewModel.showMap)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    context.l10n.placesTitle,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
                 ),
-              ),
-              Text(resultsLabel(places.length)),
-            ],
+                Text(context.l10n.results(places.length)),
+              ],
+            ),
           ),
-        ),
         // Said in words too, not only by the dot on the filter button.
         if (viewModel.filters.isActive)
           Padding(
@@ -175,27 +212,32 @@ class _ExploreScreenState extends State<ExploreScreen> {
               children: [
                 const Icon(Icons.filter_alt_outlined, size: 18),
                 const SizedBox(width: 4),
-                const Expanded(child: Text('Filtre active')),
+                Expanded(child: Text(context.l10n.filtersActive)),
                 TextButton(
                   onPressed: viewModel.resetFilters,
-                  child: const Text('Resetează'),
+                  child: Text(context.l10n.filtersReset),
                 ),
               ],
             ),
           ),
         Expanded(
-          child: _buildContent(places, showMap: !isWide && viewModel.showMap),
+          child: isWide
+              ? _buildList(places)
+              // Both stay built, so the map is where it was left when it
+              // shows again.
+              : IndexedStack(
+                  index: viewModel.showMap ? 1 : 0,
+                  sizing: StackFit.expand,
+                  children: [_buildList(places), _buildMap(viewModel, places)],
+                ),
         ),
       ],
     );
   }
 
-  Widget _buildContent(List<Place> places, {required bool showMap}) {
+  Widget _buildList(List<Place> places) {
     if (places.isEmpty) {
       return const _EmptyState();
-    }
-    if (showMap) {
-      return PlacesMap(places: places);
     }
     return ListView.builder(
       padding: const EdgeInsets.all(16),
@@ -206,6 +248,69 @@ class _ExploreScreenState extends State<ExploreScreen> {
       ),
     );
   }
+
+  Widget _buildMap(ExploreViewModel viewModel, List<Place> places) => PlacesMap(
+    places: places,
+    request: viewModel.mapRequest,
+    onRequestShown: viewModel.mapRequestShown,
+  );
+}
+
+/// The places that match the search, under the search bar: the photo, the
+/// name, the city and the rating. The one picked with the arrow keys is
+/// highlighted.
+class _Suggestions extends StatelessWidget {
+  const _Suggestions({required this.places, required this.onSelected});
+
+  final List<Place> places;
+  final ValueChanged<Place> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final highlighted = AutocompleteHighlightedOption.of(context);
+
+    return Align(
+      alignment: Alignment.topLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Material(
+          elevation: 4,
+          borderRadius: BorderRadius.circular(16),
+          clipBehavior: Clip.antiAlias,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 360),
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              shrinkWrap: true,
+              children: [
+                for (final (index, place) in places.indexed)
+                  ListTile(
+                    selected: index == highlighted,
+                    leading: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: SizedBox.square(
+                        dimension: 40,
+                        child: PlacePhoto(place: place, width: 120),
+                      ),
+                    ),
+                    title: Text(place.name),
+                    subtitle: Text(
+                      place.isRated
+                          ? context.l10n.suggestionRated(
+                              place.city,
+                              context.l10n.placeRating(place),
+                            )
+                          : context.l10n.suggestionNew(place.city),
+                    ),
+                    onTap: () => onSelected(place),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _EmptyState extends StatelessWidget {
@@ -213,13 +318,13 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.search_off, size: 48),
-          SizedBox(height: 8),
-          Text('Nu am găsit locații.'),
+          const Icon(Icons.search_off, size: 48),
+          const SizedBox(height: 8),
+          Text(context.l10n.noPlaces),
         ],
       ),
     );

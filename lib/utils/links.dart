@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:top_places/l10n/l10n.dart';
 import 'package:top_places/models/place.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -11,17 +12,17 @@ Uri directionsUri(Place place) {
   });
 }
 
-/// A WhatsApp message asking for a table at [place]. There is no phone
-/// number in the data, so WhatsApp asks who to send it to.
-Uri whatsAppUri(Place place) {
+/// A WhatsApp message with [text], e.g. asking for a table. There is no
+/// phone number in the data, so WhatsApp asks who to send it to.
+Uri whatsAppUri(String text) {
   // Spaces become %20, as in WhatsApp's own examples (Uri.https would use +).
-  final text = Uri.encodeComponent('Rezervare la ${place.name}');
-  return Uri.parse('https://wa.me/?text=$text');
+  return Uri.parse('https://wa.me/?text=${Uri.encodeComponent(text)}');
 }
 
 /// Opens [uri] outside the app and shows a message when that is not possible.
 Future<void> openLink(BuildContext context, Uri uri) async {
   final messenger = ScaffoldMessenger.of(context);
+  final failed = context.l10n.linkFailed;
   bool opened;
   try {
     opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -29,8 +30,6 @@ Future<void> openLink(BuildContext context, Uri uri) async {
     opened = false;
   }
   if (!opened) {
-    messenger.showSnackBar(
-      const SnackBar(content: Text('Nu am putut deschide linkul.')),
-    );
+    messenger.showSnackBar(SnackBar(content: Text(failed)));
   }
 }

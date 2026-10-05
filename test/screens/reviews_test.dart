@@ -266,7 +266,7 @@ void main() {
     await tester.tap(find.text('Trimite recenzia'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Nu mă pot conecta.'), findsOne);
+    expect(find.textContaining('Nu mă pot conecta.'), findsOne);
     expect(places.ratings, isEmpty);
   });
 

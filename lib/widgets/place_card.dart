@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:top_places/l10n/l10n.dart';
 import 'package:top_places/models/place.dart';
+import 'package:top_places/view_models/explore_view_model.dart';
 import 'package:top_places/widgets/place_photo.dart';
 
-/// One place in the Explore list: photo, name, city and rating.
+/// One place in the Explore list: photo, name, city and rating. Tapping it
+/// shows the place on the map, with everything about it in a sheet.
 class PlaceCard extends StatelessWidget {
   const PlaceCard({super.key, required this.place});
 
@@ -16,7 +19,7 @@ class PlaceCard extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => context.push('/locations/${place.id}'),
+        onTap: () => context.read<ExploreViewModel>().focusPlace(place),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -35,7 +38,9 @@ class PlaceCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    place.isRated ? '★ ${place.ratingText}' : 'Nou',
+                    place.isRated
+                        ? '★ ${context.l10n.placeRating(place)}'
+                        : context.l10n.ratingNew,
                     style: theme.textTheme.titleMedium,
                   ),
                 ],

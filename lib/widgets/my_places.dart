@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:top_places/l10n/l10n.dart';
 import 'package:top_places/models/place.dart';
 import 'package:top_places/screens/place_form_screen.dart';
 import 'package:top_places/services/place_service.dart';
@@ -51,17 +52,18 @@ class _MyPlacesState extends State<MyPlaces> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = context.l10n;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Semantics(
           header: true,
-          child: Text('Localurile mele', style: theme.textTheme.titleMedium),
+          child: Text(l10n.myPlaces, style: theme.textTheme.titleMedium),
         ),
         const SizedBox(height: 8),
         ListSearchField(
-          hint: 'Caută în localurile tale',
+          hint: l10n.searchMyPlaces,
           onChanged: (query) => setState(() => _query = query),
         ),
         const SizedBox(height: 8),
@@ -73,13 +75,13 @@ class _MyPlacesState extends State<MyPlaces> {
             }
             if (snapshot.error case final error?) {
               return Text(
-                error.toString(),
+                l10n.error(error),
                 style: TextStyle(color: theme.colorScheme.error),
               );
             }
             final all = snapshot.data!;
             if (all.isEmpty) {
-              return const Text('Încă nu ai adăugat niciun local.');
+              return Text(l10n.noOwnPlaces);
             }
             final places = all
                 .where(
@@ -91,7 +93,7 @@ class _MyPlacesState extends State<MyPlaces> {
                 )
                 .toList();
             if (places.isEmpty) {
-              return const Text('Niciun local nu se potrivește căutării.');
+              return Text(l10n.noMatchingPlaces);
             }
             return Column(
               children: [
@@ -99,7 +101,9 @@ class _MyPlacesState extends State<MyPlaces> {
                   Card(
                     child: ListTile(
                       title: Text(place.name),
-                      subtitle: Text('${place.city}\n${_statusText(place)}'),
+                      subtitle: Text(
+                        '${place.city}\n${_statusText(l10n, place)}',
+                      ),
                       isThreeLine: true,
                       // A suspended place stays as it is until an admin
                       // looks at it again.
@@ -107,7 +111,7 @@ class _MyPlacesState extends State<MyPlaces> {
                           widget.canEdit &&
                               place.status != PlaceStatus.suspended
                           ? IconButton(
-                              tooltip: 'Editează ${place.name}',
+                              tooltip: l10n.editPlace(place.name),
                               icon: const Icon(Icons.edit),
                               onPressed: () => _open(place: place),
                             )
@@ -123,17 +127,18 @@ class _MyPlacesState extends State<MyPlaces> {
           FilledButton.tonalIcon(
             onPressed: _open,
             icon: const Icon(Icons.add_business),
-            label: const Text('Adaugă un local'),
+            label: Text(l10n.addPlace),
           ),
         ],
       ],
     );
   }
 
-  static String _statusText(Place place) => switch (place.status) {
-    PlaceStatus.pending => 'În așteptarea aprobării',
-    PlaceStatus.approved => 'Aprobat: apare în Explorează',
-    PlaceStatus.rejected => 'Respins: ${place.statusReason}',
-    PlaceStatus.suspended => 'Suspendat: ${place.statusReason}',
-  };
+  static String _statusText(AppLocalizations l10n, Place place) =>
+      switch (place.status) {
+        PlaceStatus.pending => l10n.placePending,
+        PlaceStatus.approved => l10n.placeApproved,
+        PlaceStatus.rejected => l10n.placeRejected(place.statusReason ?? ''),
+        PlaceStatus.suspended => l10n.placeSuspended(place.statusReason ?? ''),
+      };
 }

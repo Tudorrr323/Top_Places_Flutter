@@ -6,9 +6,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:top_places/app.dart';
 import 'package:top_places/models/place.dart';
 import 'package:top_places/models/profile.dart';
+import 'package:top_places/services/gemini_service.dart';
 import 'package:top_places/services/places_repository.dart';
 
 import '../fake_account_service.dart';
+import '../fake_gemini.dart';
 import '../fake_place_service.dart';
 
 void main() {
@@ -40,6 +42,7 @@ void main() {
     WidgetTester tester, {
     Profile profile = operator,
     List<Place> mine = const [],
+    GeminiService? gemini,
   }) async {
     final service = FakePlaceService()..mine.addAll(mine);
     final repository = PlacesRepository.fromJsonStrings(
@@ -54,6 +57,7 @@ void main() {
       TopPlacesApp(
         repository: repository,
         accounts: FakeAccountService(signedIn: profile),
+        gemini: gemini,
       ),
     );
     await tester.pumpAndSettle();
@@ -91,7 +95,8 @@ void main() {
 
     await send(tester);
 
-    expect(find.text('Câmp obligatoriu.'), findsNWidgets(3));
+    // The name, the address and the description in both languages.
+    expect(find.text('Câmp obligatoriu.'), findsNWidgets(4));
     expect(find.text('Alege orașul.'), findsOne);
     expect(find.text('Atinge harta ca să alegi locul.'), findsOne);
   });
@@ -119,12 +124,18 @@ void main() {
     // flutter_map waits a moment to tell a tap from a double tap.
     await tester.pump(const Duration(milliseconds: 500));
     await tester.enterText(
-      find.widgetWithText(TextFormField, 'Descriere'),
+      find.widgetWithText(TextFormField, 'Descriere în română'),
       'Ceai bun și liniște, aproape de centru.',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Descriere în engleză'),
+      'Good tea and quiet, near the centre.',
     );
     await send(tester);
 
     final saved = service.mine.single;
+    expect(saved.descriptionRo, 'Ceai bun și liniște, aproape de centru.');
+    expect(saved.description, 'Good tea and quiet, near the centre.');
     expect(saved.city, 'Iași');
     expect(saved.lat, closeTo(47.16, 0.05));
     expect(find.text('Localurile mele'), findsOne);
@@ -147,5 +158,68 @@ void main() {
     expect(find.text('Ceainăria Ana'), findsOne);
     expect(find.text('Adaugă un local'), findsNothing);
     expect(find.byTooltip('Editează Ceainăria Ana'), findsNothing);
+  });
+
+  group('the translate button', () {
+    Finder field(String label) => find.widgetWithText(TextFormField, label);
+
+    String textOf(WidgetTester tester, String label) =>
+        tester.widget<TextFormField>(field(label)).controller!.text;
+
+    testWidgets('writes the other language from the one written', (
+      tester,
+    ) async {
+      final asked = <String>[];
+      await openProfile(
+        tester,
+        gemini: fakeGeminiAnswers([
+          'Good tea and quiet, near the centre.',
+          'Ceai bun, liniște și prăjituri, aproape de centru.',
+        ], onRequest: (request) => asked.add(request.body)),
+      );
+      await openForm(tester);
+      expect(find.textContaining('butonul o traduce'), findsOne);
+
+      await tester.enterText(
+        field('Descriere în română'),
+        'Ceai bun și liniște, aproape de centru.',
+      );
+      await tester.pump();
+      await tester.ensureVisible(find.text('Tradu în engleză'));
+      await tester.tap(find.text('Tradu în engleză'));
+      await tester.pumpAndSettle();
+
+      expect(asked.single, contains('Translate into English'));
+      expect(
+        textOf(tester, 'Descriere în engleză'),
+        'Good tea and quiet, near the centre.',
+      );
+
+      // Changed last, the English one is now translated into Romanian.
+      await tester.enterText(
+        field('Descriere în engleză'),
+        'Good tea, quiet and cakes, near the centre.',
+      );
+      await tester.pump();
+      await tester.tap(find.text('Tradu în română'));
+      await tester.pumpAndSettle();
+
+      expect(asked.last, contains('Tradu în română'));
+      expect(
+        textOf(tester, 'Descriere în română'),
+        'Ceai bun, liniște și prăjituri, aproape de centru.',
+      );
+    });
+
+    testWidgets('without a Gemini key, says what it needs', (tester) async {
+      await openProfile(tester);
+      await openForm(tester);
+
+      expect(
+        find.text('Traducerea automată are nevoie de cheia Gemini.'),
+        findsOne,
+      );
+      expect(find.text('Tradu în engleză'), findsNothing);
+    });
   });
 }

@@ -64,13 +64,4 @@ class Rating {
 
   /// True for the reader's own review.
   final bool mine;
-
-  /// "5.10.2026", or nothing when the date is unknown.
-  String get dateText {
-    final date = updatedAt;
-    return date == null ? '' : '${date.day}.${date.month}.${date.year}';
-  }
-
-  /// "1 stea", "4 stele".
-  static String starsText(int stars) => stars == 1 ? '1 stea' : '$stars stele';
 }

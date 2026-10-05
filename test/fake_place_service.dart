@@ -230,7 +230,7 @@ class FakePlaceService implements PlaceService {
 
   void _checkOnline() {
     if (offline) {
-      throw const PlaceException('Nu mă pot conecta.');
+      throw const PlaceException(PlaceProblem.offline);
     }
   }
 
@@ -244,6 +244,7 @@ class FakePlaceService implements PlaceService {
     lng: draft.lng,
     imageUrl: draft.imageUrl,
     description: draft.description,
+    descriptionRo: draft.descriptionRo,
     rating: 0,
     status: PlaceStatus.pending,
   );

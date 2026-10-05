@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:top_places/l10n/l10n.dart';
 import 'package:top_places/models/place.dart';
 import 'package:top_places/screens/place_form_screen.dart';
 import 'package:top_places/services/place_service.dart';
@@ -44,26 +45,27 @@ class _AdminPlacesScreenState extends State<AdminPlacesScreen> {
     final service = context.read<PlaceService?>()!;
     final repository = context.read<PlacesRepository>();
     final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
     try {
       await service.review(place.id, review);
       // Explore shows the change at once.
       await repository.refresh();
       if (mounted) _reload();
     } on PlaceException catch (error) {
-      messenger.showSnackBar(SnackBar(content: Text(error.message)));
+      messenger.showSnackBar(SnackBar(content: Text(l10n.placeError(error))));
     }
   }
 
   Future<PlaceReview?> _confirmApproval(Place place) async {
     final again = place.status == PlaceStatus.suspended;
+    final l10n = context.l10n;
     final confirmed = await askConfirmation(
       context,
-      title: again ? 'Reactivezi „${place.name}”?' : 'Aprobi „${place.name}”?',
-      message: again
-          ? 'Localul apare din nou în Explorează.'
-          : 'Localul apare în Explorează pentru toată lumea. Ratingul îl '
-                'vor da cei care îl vizitează.',
-      action: again ? 'Reactivează' : 'Aprobă',
+      title: again
+          ? l10n.reactivatePlaceTitle(place.name)
+          : l10n.approvePlaceTitle(place.name),
+      message: again ? l10n.reactivatePlaceMessage : l10n.approvePlaceMessage,
+      action: again ? l10n.reactivate : l10n.approve,
     );
     return confirmed ? PlaceReview.approve() : null;
   }
@@ -71,8 +73,8 @@ class _AdminPlacesScreenState extends State<AdminPlacesScreen> {
   Future<PlaceReview?> _askRejection(Place place) async {
     final reason = await askReason(
       context,
-      title: 'Respingi „${place.name}”?',
-      action: 'Respinge',
+      title: context.l10n.rejectPlaceTitle(place.name),
+      action: context.l10n.reject,
     );
     return reason == null ? null : PlaceReview.reject(reason);
   }
@@ -80,8 +82,8 @@ class _AdminPlacesScreenState extends State<AdminPlacesScreen> {
   Future<PlaceReview?> _askSuspension(Place place) async {
     final reason = await askReason(
       context,
-      title: 'Suspenzi „${place.name}”?',
-      action: 'Suspendă',
+      title: context.l10n.suspendPlaceTitle(place.name),
+      action: context.l10n.suspend,
     );
     return reason == null ? null : PlaceReview.suspend(reason);
   }
@@ -100,7 +102,7 @@ class _AdminPlacesScreenState extends State<AdminPlacesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Localuri')),
+      appBar: AppBar(title: Text(context.l10n.adminPlacesTitle)),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 720),
@@ -110,7 +112,7 @@ class _AdminPlacesScreenState extends State<AdminPlacesScreen> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 child: ListSearchField(
-                  hint: 'Caută după nume, oraș sau adresă',
+                  hint: context.l10n.searchPlacesAdmin,
                   onChanged: (query) => setState(() => _query = query),
                 ),
               ),
@@ -122,7 +124,7 @@ class _AdminPlacesScreenState extends State<AdminPlacesScreen> {
                   children: [
                     for (final status in PlaceStatus.values)
                       ChoiceChip(
-                        label: Text(_filterLabel(status)),
+                        label: Text(_filterLabel(context.l10n, status)),
                         selected: _shown == status,
                         onSelected: (_) => setState(() => _shown = status),
                       ),
@@ -137,7 +139,7 @@ class _AdminPlacesScreenState extends State<AdminPlacesScreen> {
                       return const Center(child: CircularProgressIndicator());
                     }
                     if (snapshot.error case final error?) {
-                      return Center(child: Text(error.toString()));
+                      return Center(child: Text(context.l10n.error(error)));
                     }
                     final places = snapshot.data!
                         .where((place) => place.status == _shown)
@@ -150,7 +152,7 @@ class _AdminPlacesScreenState extends State<AdminPlacesScreen> {
                         )
                         .toList();
                     if (places.isEmpty) {
-                      return const Center(child: Text('Niciun local aici.'));
+                      return Center(child: Text(context.l10n.noPlacesHere));
                     }
                     return ListView(
                       padding: const EdgeInsets.all(16),
@@ -174,40 +176,45 @@ class _AdminPlacesScreenState extends State<AdminPlacesScreen> {
     Widget button(String label, VoidCallback onPressed) =>
         TextButton(onPressed: onPressed, child: Text(label));
 
-    final edit = button('Editează', () => _edit(place));
+    final l10n = context.l10n;
+    final edit = button(l10n.edit, () => _edit(place));
     return switch (place.status) {
       PlaceStatus.pending => [
-        button('Respinge', () => _decide(() => _askRejection(place), place)),
+        button(l10n.reject, () => _decide(() => _askRejection(place), place)),
         edit,
         FilledButton(
           onPressed: () => _decide(() => _confirmApproval(place), place),
-          child: const Text('Aprobă'),
+          child: Text(l10n.approve),
         ),
       ],
       PlaceStatus.approved => [
-        button('Suspendă', () => _decide(() => _askSuspension(place), place)),
+        button(l10n.suspend, () => _decide(() => _askSuspension(place), place)),
         edit,
       ],
       PlaceStatus.rejected => [
         edit,
-        button('Aprobă', () => _decide(() => _confirmApproval(place), place)),
+        button(
+          l10n.approve,
+          () => _decide(() => _confirmApproval(place), place),
+        ),
       ],
       PlaceStatus.suspended => [
         edit,
         button(
-          'Reactivează',
+          l10n.reactivate,
           () => _decide(() => _confirmApproval(place), place),
         ),
       ],
     };
   }
 
-  static String _filterLabel(PlaceStatus status) => switch (status) {
-    PlaceStatus.pending => 'De verificat',
-    PlaceStatus.approved => 'Publice',
-    PlaceStatus.rejected => 'Respinse',
-    PlaceStatus.suspended => 'Suspendate',
-  };
+  static String _filterLabel(AppLocalizations l10n, PlaceStatus status) =>
+      switch (status) {
+        PlaceStatus.pending => l10n.filterToCheck,
+        PlaceStatus.approved => l10n.filterPublic,
+        PlaceStatus.rejected => l10n.filterRejected,
+        PlaceStatus.suspended => l10n.filterSuspended,
+      };
 }
 
 /// One place in the admin's list, with its decisions under it.
@@ -219,7 +226,10 @@ class _PlaceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rating = place.isRated ? '★ ${place.ratingText}' : 'fără rating';
+    final l10n = context.l10n;
+    final rating = place.isRated
+        ? '★ ${l10n.placeRating(place)}'
+        : l10n.noRating;
     final reason = place.statusReason;
 
     return Card(
@@ -230,7 +240,7 @@ class _PlaceCard extends StatelessWidget {
           children: [
             Text(place.name, style: Theme.of(context).textTheme.titleMedium),
             Text('${place.address} · $rating'),
-            if (reason != null) Text('Motiv: $reason'),
+            if (reason != null) Text(l10n.reason(reason)),
             const SizedBox(height: 4),
             Align(
               alignment: Alignment.centerRight,

@@ -26,11 +26,11 @@ class FakeAccountService implements AccountService {
   @override
   Future<void> signIn({required String email, required String password}) async {
     if (unconfirmed.contains(email)) {
-      throw const AccountException('Încă nu ți-ai confirmat emailul.');
+      throw const AccountException(AccountProblem.emailNotConfirmed);
     }
     final account = accounts[email];
     if (account == null || account.$1 != password) {
-      throw const AccountException('Email sau parolă greșite.');
+      throw const AccountException(AccountProblem.wrongCredentials);
     }
     _profile = account.$2;
   }

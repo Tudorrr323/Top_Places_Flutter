@@ -98,12 +98,6 @@ class Place {
   /// False for a new place, until people rate it.
   bool get isRated => rating > 0;
 
-  /// "4.7", or "Nou" for a place without a rating yet.
-  String get ratingText => isRated ? rating.toStringAsFixed(1) : 'Nou';
-
-  /// What a screen reader says instead of [ratingText].
-  String get ratingLabel => isRated ? '$ratingText stele' : 'local nou';
-
   /// The city is the last part of the address ("Str. X, Nr. 1, Iași" -> "Iași").
   /// The data writes Bucharest in English, so it is mapped to the Romanian
   /// name used in romanian_cities.json.

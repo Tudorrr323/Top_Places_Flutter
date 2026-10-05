@@ -1,0 +1,7 @@
+# The texts of the app, in Romanian and English: lib/l10n/app_ro.arb and
+# app_en.arb. `flutter gen-l10n` (or any build) writes the Dart code next to
+# them.
+arb-dir: lib/l10n
+template-arb-file: app_ro.arb
+output-localization-file: app_localizations.dart
+nullable-getter: false
