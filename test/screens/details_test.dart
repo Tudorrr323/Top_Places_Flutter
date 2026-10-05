@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:top_places/app.dart';
+import 'package:top_places/models/place.dart';
 import 'package:top_places/screens/explore_screen.dart';
 import 'package:top_places/services/gemini_service.dart';
 import 'package:top_places/services/places_repository.dart';
@@ -21,12 +22,13 @@ void main() {
     WidgetTester tester,
     String location, {
     GeminiService? gemini,
+    PlacesRepository? places,
   }) async {
     tester.view.physicalSize = const Size(400, 900);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
-      TopPlacesApp(repository: repository, gemini: gemini),
+      TopPlacesApp(repository: places ?? repository, gemini: gemini),
     );
     await tester.pumpAndSettle();
     GoRouter.of(tester.element(find.byType(ExploreScreen))).go(location);
@@ -178,5 +180,32 @@ void main() {
 
     expect(find.text('Brunch lejer și prăjituri bune. 🍰'), findsOneWidget);
     expect(asked, hasLength(2));
+  });
+
+  testWidgets("an operator's place in one language has no translation note", (
+    tester,
+  ) async {
+    final oneLanguage = PlacesRepository(
+      initialPlaces: [
+        const Place(
+          id: 'ceainaria-ana',
+          name: 'Ceainăria Ana',
+          address: 'Str. Lăpușneanu, Nr. 3, Iași',
+          city: 'Iași',
+          lat: 47.16,
+          lng: 27.58,
+          imageUrl: '',
+          description: 'Ceai bun și liniște, aproape de centru.',
+          rating: 4.5,
+          ownerId: 'dan',
+        ),
+      ],
+      cities: const [],
+    );
+    await openLink(tester, '/locations/ceainaria-ana', places: oneLanguage);
+
+    expect(find.text('Ceai bun și liniște, aproape de centru.'), findsOne);
+    expect(find.text('EN'), findsNothing);
+    expect(find.textContaining('engleză'), findsNothing);
   });
 }

@@ -10,9 +10,12 @@ import 'package:top_places/services/places_repository.dart';
 /// as in the database, so a mistake shows here instead of as an error from
 /// the server.
 class PlaceFormScreen extends StatefulWidget {
-  const PlaceFormScreen({super.key, this.place});
+  const PlaceFormScreen({super.key, this.place, this.asAdmin = false});
 
   final Place? place;
+
+  /// An admin's edits keep the place where it is in the review.
+  final bool asAdmin;
 
   @override
   State<PlaceFormScreen> createState() => _PlaceFormScreenState();
@@ -97,7 +100,7 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                if (place?.status == PlaceStatus.approved)
+                if (place?.status == PlaceStatus.approved && !widget.asAdmin)
                   const Padding(
                     padding: EdgeInsets.only(bottom: 8),
                     child: Text(
@@ -198,11 +201,11 @@ class _PlaceFormScreenState extends State<PlaceFormScreen> {
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed: _saving ? null : _save,
-                  child: Text(
-                    place == null
-                        ? 'Trimite spre aprobare'
-                        : 'Salvează și trimite spre aprobare',
-                  ),
+                  child: Text(switch ((place, widget.asAdmin)) {
+                    (null, _) => 'Trimite spre aprobare',
+                    (_, true) => 'Salvează',
+                    _ => 'Salvează și trimite spre aprobare',
+                  }),
                 ),
               ],
             ),

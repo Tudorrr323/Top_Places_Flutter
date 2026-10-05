@@ -18,6 +18,28 @@ class AccountException implements Exception {
   String toString() => message;
 }
 
+/// What an admin changes about an account. The database checks the rest:
+/// a reason is required to suspend, and an admin cannot change their own
+/// role or suspend themselves.
+class ProfileUpdate {
+  ProfileUpdate.name(String firstName, String lastName)
+    : row = {'first_name': firstName.trim(), 'last_name': lastName.trim()};
+
+  /// Approving a request to become an operator is giving this role.
+  ProfileUpdate.role(Role role) : row = {'role': role.name};
+
+  ProfileUpdate.rejectOperatorRequest()
+    : row = {'operator_request': 'rejected'};
+
+  ProfileUpdate.suspend(String reason)
+    : row = {'suspended_reason': reason.trim()};
+
+  ProfileUpdate.reactivate() : row = {'suspended_reason': null};
+
+  /// The columns to change.
+  final Map<String, Object?> row;
+}
+
 /// Accounts: signing up and in, and the signed-in user's own profile. An
 /// interface, so that the tests can use a fake instead of Supabase.
 abstract class AccountService {
@@ -44,6 +66,12 @@ abstract class AccountService {
 
   /// Asks an admin for the operator role.
   Future<Profile> requestOperatorRole();
+
+  /// Every account. Only an admin gets them all.
+  Future<List<Profile>> allProfiles();
+
+  /// An admin's change to someone's account.
+  Future<Profile> updateProfile(String id, ProfileUpdate update);
 }
 
 class SupabaseAccountService implements AccountService {
@@ -99,6 +127,30 @@ class SupabaseAccountService implements AccountService {
   @override
   Future<Profile> requestOperatorRole() {
     return _updateOwnProfile({'operator_request': 'pending'});
+  }
+
+  @override
+  Future<List<Profile>> allProfiles() async {
+    final rows = await _guard(
+      () => _client
+          .from('profiles')
+          .select()
+          .order('created_at', ascending: true),
+    );
+    return [for (final row in rows) Profile.fromJson(row)];
+  }
+
+  @override
+  Future<Profile> updateProfile(String id, ProfileUpdate update) async {
+    final row = await _guard(
+      () => _client
+          .from('profiles')
+          .update(update.row)
+          .eq('id', id)
+          .select()
+          .single(),
+    );
+    return Profile.fromJson(row);
   }
 
   Future<Profile> _updateOwnProfile(Map<String, Object> values) async {

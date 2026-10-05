@@ -219,9 +219,15 @@ class _AboutSection extends StatelessWidget {
     final theme = Theme.of(context);
     final translation = place.descriptionRo;
     // A record: the text and its note are chosen together.
-    final (text, note) = inRomanian && translation != null
-        ? (translation, 'Traducere din engleză, inclusă în aplicație.')
-        : (place.description, 'Textul original, în engleză.');
+    final (text, note) = switch ((translation, inRomanian)) {
+      (final romanian?, true) => (
+        romanian,
+        'Traducere din engleză, inclusă în aplicație.',
+      ),
+      (_?, false) => (place.description, 'Textul original, în engleză.'),
+      // One language only, e.g. an operator's own text: nothing to tell.
+      (null, _) => (place.description, null),
+    };
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,13 +266,15 @@ class _AboutSection extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(text, style: theme.textTheme.bodyLarge),
-        const SizedBox(height: 4),
-        Text(
-          note,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+        if (note != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            note,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
-        ),
+        ],
       ],
     );
   }

@@ -53,6 +53,7 @@ class _TopPlacesAppState extends State<TopPlacesApp> {
           value: widget.repository,
         ),
         Provider<PlaceService?>.value(value: widget.repository.remote),
+        Provider<AccountService?>.value(value: widget.accounts),
         Provider<GeminiService?>.value(value: widget.gemini),
         // Gets the new places whenever the repository changes; the search
         // and the filters stay.

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:top_places/models/profile.dart';
+import 'package:top_places/screens/admin_places_screen.dart';
+import 'package:top_places/screens/admin_users_screen.dart';
 import 'package:top_places/view_models/account_view_model.dart';
+import 'package:top_places/widgets/dialogs.dart';
 import 'package:top_places/widgets/my_places.dart';
 
 /// The Profil tab: sign in or create an account; once signed in, the
@@ -213,9 +216,10 @@ class _AccountDetails extends StatelessWidget {
 
   Future<void> _editName(BuildContext context) async {
     final account = context.read<AccountViewModel>();
-    final names = await showDialog<(String, String)>(
-      context: context,
-      builder: (context) => _NameDialog(profile: profile),
+    final names = await askName(
+      context,
+      firstName: profile.firstName,
+      lastName: profile.lastName,
     );
     if (names != null) {
       await account.updateName(names.$1, names.$2);
@@ -285,7 +289,33 @@ class _AccountDetails extends StatelessWidget {
   /// operator.
   List<Widget> _roleSection(BuildContext context, AccountViewModel account) {
     if (profile.role == Role.admin) {
-      return const [Text('Ești administrator.')];
+      // A suspended admin keeps the role but loses the tools, in the
+      // database as well.
+      if (profile.isSuspended) return const [];
+      void open(Widget screen) =>
+          Navigator.of(context)
+              .push(MaterialPageRoute<void>(builder: (context) => screen));
+      return [
+        Semantics(
+          header: true,
+          child: Text(
+            'Administrare',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+        ),
+        const SizedBox(height: 8),
+        FilledButton.tonalIcon(
+          onPressed: () => open(const AdminPlacesScreen()),
+          icon: const Icon(Icons.fact_check_outlined),
+          label: const Text('Localuri: aprobări și suspendări'),
+        ),
+        const SizedBox(height: 8),
+        FilledButton.tonalIcon(
+          onPressed: () => open(const AdminUsersScreen()),
+          icon: const Icon(Icons.manage_accounts_outlined),
+          label: const Text('Utilizatori și operatori'),
+        ),
+      ];
     }
     if (profile.role == Role.operator) {
       return [MyPlaces(canEdit: !profile.isSuspended)];
@@ -317,69 +347,4 @@ class _AccountDetails extends StatelessWidget {
     Role.operator => 'Operator de localuri',
     Role.admin => 'Administrator',
   };
-}
-
-/// Asks for the new first and last name; returns them, or null.
-class _NameDialog extends StatefulWidget {
-  const _NameDialog({required this.profile});
-
-  final Profile profile;
-
-  @override
-  State<_NameDialog> createState() => _NameDialogState();
-}
-
-class _NameDialogState extends State<_NameDialog> {
-  final _formKey = GlobalKey<FormState>();
-  late final _firstName = TextEditingController(text: widget.profile.firstName);
-  late final _lastName = TextEditingController(text: widget.profile.lastName);
-
-  @override
-  void dispose() {
-    _firstName.dispose();
-    _lastName.dispose();
-    super.dispose();
-  }
-
-  void _save() {
-    if (_formKey.currentState!.validate()) {
-      Navigator.pop(context, (_firstName.text, _lastName.text));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    String? required(String? value) =>
-        value == null || value.trim().isEmpty ? 'Câmp obligatoriu.' : null;
-
-    return AlertDialog(
-      title: const Text('Schimbă numele'),
-      content: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextFormField(
-              controller: _firstName,
-              decoration: const InputDecoration(labelText: 'Prenume'),
-              validator: required,
-            ),
-            TextFormField(
-              controller: _lastName,
-              decoration: const InputDecoration(labelText: 'Nume'),
-              validator: required,
-              onFieldSubmitted: (_) => _save(),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Renunță'),
-        ),
-        FilledButton(onPressed: _save, child: const Text('Salvează')),
-      ],
-    );
-  }
 }

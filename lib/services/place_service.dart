@@ -43,6 +43,24 @@ class PlaceDraft {
   };
 }
 
+/// What an admin decides about a place. The database checks the rest: a
+/// reason is required to reject or suspend, and a rating to approve.
+class PlaceReview {
+  PlaceReview.approve({required double rating})
+    : row = {'status': 'approved', 'rating': rating};
+
+  PlaceReview.reject(String reason)
+    : row = {'status': 'rejected', 'status_reason': reason.trim()};
+
+  PlaceReview.suspend(String reason)
+    : row = {'status': 'suspended', 'status_reason': reason.trim()};
+
+  PlaceReview.rate(double rating) : row = {'rating': rating};
+
+  /// The columns to change.
+  final Map<String, Object> row;
+}
+
 /// Places stored in Supabase. An interface, so that the tests can use a fake.
 abstract class PlaceService {
   /// What everyone sees: approved places whose owner is not suspended.
@@ -56,6 +74,12 @@ abstract class PlaceService {
 
   /// Changes a place; the owner's changes go back to review.
   Future<Place> updatePlace(String id, PlaceDraft draft);
+
+  /// Every place, in every status. Only an admin gets them all.
+  Future<List<Place>> allPlaces();
+
+  /// An admin's decision about a place.
+  Future<Place> review(String id, PlaceReview review);
 }
 
 class SupabasePlaceService implements PlaceService {
@@ -99,14 +123,29 @@ class SupabasePlaceService implements PlaceService {
   }
 
   @override
-  Future<Place> updatePlace(String id, PlaceDraft draft) async {
-    final row = await _guard(
+  Future<Place> updatePlace(String id, PlaceDraft draft) =>
+      _update(id, draft.toRow());
+
+  @override
+  Future<List<Place>> allPlaces() async {
+    final rows = await _guard(
       () => _client
           .from('places')
-          .update(draft.toRow())
-          .eq('id', id)
           .select()
-          .single(),
+          .order('created_at', ascending: true)
+          .order('name', ascending: true),
+    );
+    return [for (final row in rows) Place.fromRow(row)];
+  }
+
+  @override
+  Future<Place> review(String id, PlaceReview review) =>
+      _update(id, review.row);
+
+  Future<Place> _update(String id, Map<String, Object> values) async {
+    final row = await _guard(
+      () =>
+          _client.from('places').update(values).eq('id', id).select().single(),
     );
     return Place.fromRow(row);
   }

@@ -9,6 +9,9 @@ class FakePlaceService implements PlaceService {
 
   final List<Place> _public;
   final mine = <Place>[];
+
+  /// What an admin sees: every place, in every status.
+  final all = <Place>[];
   bool offline;
   int _nextId = 1;
 
@@ -37,6 +40,42 @@ class FakePlaceService implements PlaceService {
     _checkOnline();
     final place = _fromDraft(id, draft);
     mine[mine.indexWhere((old) => old.id == id)] = place;
+    return place;
+  }
+
+  @override
+  Future<List<Place>> allPlaces() async {
+    _checkOnline();
+    return List.of(all);
+  }
+
+  /// Applies the review like the database does: approving clears the
+  /// reason, and a review without a rating keeps the old one.
+  @override
+  Future<Place> review(String id, PlaceReview review) async {
+    _checkOnline();
+    final index = all.indexWhere((place) => place.id == id);
+    final old = all[index];
+    final row = review.row;
+    final status = row['status'] as String?;
+    final place = Place(
+      id: old.id,
+      name: old.name,
+      address: old.address,
+      city: old.city,
+      lat: old.lat,
+      lng: old.lng,
+      imageUrl: old.imageUrl,
+      description: old.description,
+      descriptionRo: old.descriptionRo,
+      rating: row['rating'] as double? ?? old.rating,
+      status: status == null ? old.status : PlaceStatus.values.byName(status),
+      statusReason: status == null
+          ? old.statusReason
+          : row['status_reason'] as String?,
+      ownerId: old.ownerId,
+    );
+    all[index] = place;
     return place;
   }
 

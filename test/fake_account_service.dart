@@ -14,6 +14,9 @@ class FakeAccountService implements AccountService {
   /// Addresses that signed up but have not opened the email yet.
   final unconfirmed = <String>{};
 
+  /// What an admin sees: every account.
+  final profiles = <Profile>[];
+
   @override
   Future<Profile?> loadProfile() async => _profile;
 
@@ -53,6 +56,39 @@ class FakeAccountService implements AccountService {
   @override
   Future<Profile> requestOperatorRole() async {
     return _profile = _changed(request: OperatorRequest.pending);
+  }
+
+  @override
+  Future<List<Profile>> allProfiles() async => List.of(profiles);
+
+  /// Applies the update like the database does: giving a role clears the
+  /// request to become an operator.
+  @override
+  Future<Profile> updateProfile(String id, ProfileUpdate update) async {
+    final index = profiles.indexWhere((profile) => profile.id == id);
+    final old = profiles[index];
+    final row = update.row;
+    final role = row.containsKey('role')
+        ? Role.values.byName(row['role']! as String)
+        : old.role;
+    final request = row['operator_request'] as String?;
+    final profile = Profile(
+      id: old.id,
+      email: old.email,
+      firstName: row['first_name'] as String? ?? old.firstName,
+      lastName: row['last_name'] as String? ?? old.lastName,
+      role: role,
+      operatorRequest: role != Role.user
+          ? null
+          : request == null
+          ? old.operatorRequest
+          : OperatorRequest.values.byName(request),
+      suspendedReason: row.containsKey('suspended_reason')
+          ? row['suspended_reason'] as String?
+          : old.suspendedReason,
+    );
+    profiles[index] = profile;
+    return profile;
   }
 
   Profile _changed({
