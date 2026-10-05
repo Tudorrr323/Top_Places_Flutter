@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:top_places/app.dart';
-import 'package:top_places/screens/place_details_screen.dart';
 import 'package:top_places/services/places_repository.dart';
+import 'package:top_places/widgets/place_marker.dart';
 import 'package:top_places/widgets/place_card.dart';
 
 void main() {
@@ -42,19 +42,154 @@ void main() {
     expect(find.byTooltip('Arată harta'), findsNothing);
   });
 
-  testWidgets('a marker opens a card that leads to the details', (
+  group('a marker opens a sheet', () {
+    const name = "Gaming Coffee Shop 'Restart'";
+
+    /// Opens the map and taps the marker of [name], which has no
+    /// neighbours: zoomed out, nearby markers overlap.
+    Future<void> openSheet(WidgetTester tester) async {
+      await startApp(tester, const Size(400, 900));
+      await tester.tap(find.byTooltip('Arată harta'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip(name));
+      await tester.pumpAndSettle();
+    }
+
+    /// How tall the sheet is now.
+    double sheetHeight(WidgetTester tester) => tester
+        .getSize(
+          find
+              .descendant(
+                of: find.byType(DraggableScrollableSheet),
+                matching: find.byType(Material),
+              )
+              .first,
+        )
+        .height;
+
+    testWidgets('small at first, with what matters most', (tester) async {
+      await openSheet(tester);
+
+      expect(find.text(name), findsOneWidget);
+      expect(find.text('Strada Vasile Alecsandri, Nr. 5, Galați'), findsOne);
+      expect(find.textContaining('Jocuri de societate'), findsOne);
+      expect(find.text('★ 4.1'), findsOne);
+      expect(sheetHeight(tester), lessThan(300));
+    });
+
+    testWidgets('dragged up, it covers the screen, tabs included', (
+      tester,
+    ) async {
+      await openSheet(tester);
+
+      await tester.drag(find.text(name), const Offset(0, -700));
+      await tester.pumpAndSettle();
+
+      expect(sheetHeight(tester), 900);
+      expect(find.byTooltip('Micșorează'), findsOne);
+      await tester.tap(find.text('Recenzii'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('conectată la Supabase'), findsOne);
+    });
+
+    testWidgets('its buttons resize and close it', (tester) async {
+      await openSheet(tester);
+
+      await tester.tap(find.byTooltip('Toate detaliile'));
+      await tester.pumpAndSettle();
+      expect(sheetHeight(tester), 900);
+
+      await tester.tap(find.byTooltip('Micșorează'));
+      await tester.pumpAndSettle();
+      expect(sheetHeight(tester), lessThan(300));
+
+      await tester.tap(find.byTooltip('Închide'));
+      await tester.pumpAndSettle();
+      expect(find.byType(DraggableScrollableSheet), findsNothing);
+    });
+
+    testWidgets('full, it shrinks when dragged down, then closes', (
+      tester,
+    ) async {
+      await openSheet(tester);
+      await tester.tap(find.byTooltip('Toate detaliile'));
+      await tester.pumpAndSettle();
+
+      await tester.timedDrag(
+        find.text(name),
+        const Offset(0, 500),
+        const Duration(milliseconds: 300),
+      );
+      await tester.pumpAndSettle();
+      expect(sheetHeight(tester), lessThan(300));
+
+      await tester.timedDrag(
+        find.text(name),
+        const Offset(0, 200),
+        const Duration(milliseconds: 300),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(DraggableScrollableSheet), findsNothing);
+    });
+
+    testWidgets('dragged down, it closes', (tester) async {
+      await openSheet(tester);
+
+      await tester.drag(find.text(name), const Offset(0, 300));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DraggableScrollableSheet), findsNothing);
+    });
+  });
+
+  testWidgets('nearby places share a bubble that splits when tapped', (
     tester,
   ) async {
     await startApp(tester, const Size(400, 900));
     await tester.tap(find.byTooltip('Arată harta'));
     await tester.pumpAndSettle();
 
-    // A marker with no neighbours: zoomed out, nearby markers overlap.
-    await tester.tap(find.byTooltip("Gaming Coffee Shop 'Restart'"));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Detalii'));
-    await tester.pumpAndSettle();
+    final clusters = tester.widgetList<ClusterMarker>(
+      find.byType(ClusterMarker),
+    );
+    expect(clusters, isNotEmpty);
+    final inClusters = clusters.fold(0, (sum, c) => sum + c.places.length);
+    expect(
+      inClusters + find.byType(PlaceMarker).evaluate().length,
+      20,
+      reason: 'every place shows once',
+    );
 
-    expect(find.byType(PlaceDetailsScreen), findsOneWidget);
+    // Tapping a bubble zooms in on its places: each then has its own
+    // marker, or is in a smaller bubble.
+    var group = clusters.first.places;
+    await tester.tap(find.byType(ClusterMarker).first);
+    await tester.pumpAndSettle();
+    for (final place in group) {
+      final alone = find.byTooltip(place.name).evaluate().isNotEmpty;
+      final inSmaller = tester
+          .widgetList<ClusterMarker>(find.byType(ClusterMarker))
+          .any(
+            (bubble) =>
+                bubble.places.length < group.length &&
+                bubble.places.contains(place),
+          );
+      expect(alone || inSmaller, isTrue, reason: place.name);
+    }
+
+    // Tapping the smaller bubbles ends with a marker for each place.
+    for (var tap = 0; tap < 5; tap++) {
+      final smaller = find.byWidgetPredicate(
+        (widget) =>
+            widget is ClusterMarker && widget.places.any(group.contains),
+      );
+      if (smaller.evaluate().isEmpty) break;
+      group = tester.widget<ClusterMarker>(smaller.first).places;
+      await tester.tap(smaller.first);
+      await tester.pumpAndSettle();
+    }
+    for (final place in group) {
+      expect(find.byTooltip(place.name), findsOne, reason: place.name);
+    }
   });
 }

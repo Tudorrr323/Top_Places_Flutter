@@ -1,11 +1,17 @@
 import 'package:top_places/models/place.dart';
+import 'package:top_places/models/rating.dart';
 import 'package:top_places/services/place_service.dart';
 
 /// Places kept in memory, instead of Supabase. [offline] makes every call
 /// fail the way a missing connection does.
 class FakePlaceService implements PlaceService {
-  FakePlaceService({List<Place> public = const [], this.offline = false})
-    : _public = List.of(public);
+  FakePlaceService({
+    List<Place> public = const [],
+    this.offline = false,
+    this.me,
+    this.meIsAdmin = false,
+  }) : _public = List.of(public),
+       _startingRatings = {for (final place in public) place.id: place.rating};
 
   final List<Place> _public;
   final mine = <Place>[];
@@ -13,8 +19,18 @@ class FakePlaceService implements PlaceService {
   /// What an admin sees: every place, in every status.
   final all = <Place>[];
 
-  /// The stars the signed-in account gave, by place.
-  final myRatings = <String, int>{};
+  /// Every review, like the ratings table.
+  final ratings = <Rating>[];
+
+  /// The id of the account the calls are made as, like the session in
+  /// Supabase; null when nobody is signed in.
+  final String? me;
+
+  /// True when [me] is an admin.
+  final bool meIsAdmin;
+
+  /// The rating each public place had before its reviews.
+  final Map<String, double> _startingRatings;
   bool offline;
   int _nextId = 1;
 
@@ -84,19 +100,97 @@ class FakePlaceService implements PlaceService {
   }
 
   @override
-  Future<int?> myRating(String placeId) async {
+  Future<Rating?> myRating(String placeId) async {
     _checkOnline();
-    return myRatings[placeId];
+    return ratings
+        .where((rating) => rating.placeId == placeId && rating.userId == me)
+        .firstOrNull;
   }
 
-  /// Saves the stars, and gives the public place their average as if they
-  /// were its only rating.
+  /// Like the database: a new or changed review waits for the operator,
+  /// except an admin's review of a place without one.
   @override
-  Future<void> ratePlace(String placeId, int stars) async {
+  Future<Rating> saveRating(
+    String placeId, {
+    required int stars,
+    String comment = '',
+  }) async {
     _checkOnline();
-    myRatings[placeId] = stars;
+    final message = comment.trim();
+    final place = _public.where((place) => place.id == placeId).firstOrNull;
+    final rating = Rating(
+      stars: stars,
+      comment: message.isEmpty ? null : message,
+      status: meIsAdmin && place?.ownerId == null
+          ? RatingStatus.approved
+          : RatingStatus.pending,
+      author: 'Eu',
+      placeId: placeId,
+      userId: me!,
+    );
+    ratings
+      ..removeWhere((old) => old.placeId == placeId && old.userId == me)
+      ..add(rating);
+    _refreshAverage(placeId);
+    return rating;
+  }
+
+  @override
+  Future<void> deleteRating(Rating rating) async {
+    _checkOnline();
+    ratings.removeWhere(
+      (old) => old.placeId == rating.placeId && old.userId == rating.userId,
+    );
+    _refreshAverage(rating.placeId);
+  }
+
+  @override
+  Future<List<Rating>> placeRatings(String placeId) async {
+    _checkOnline();
+    return [
+      for (final rating in ratings)
+        if (rating.placeId == placeId && rating.status == RatingStatus.approved)
+          _changed(rating, mine: rating.userId == me),
+    ];
+  }
+
+  /// Every review except the reader's own; the fake does not check roles.
+  @override
+  Future<List<Rating>> ratingsToModerate() async {
+    _checkOnline();
+    return [
+      for (final rating in ratings)
+        if (rating.userId != me) rating,
+    ];
+  }
+
+  @override
+  Future<void> decideRating(Rating rating, RatingDecision decision) async {
+    _checkOnline();
+    final index = ratings.indexWhere(
+      (old) => old.placeId == rating.placeId && old.userId == rating.userId,
+    );
+    final status = RatingStatus.values.byName(
+      decision.row['status']! as String,
+    );
+    ratings[index] = _changed(
+      ratings[index],
+      status: status,
+      statusReason: decision.row['status_reason'] as String?,
+    );
+    _refreshAverage(rating.placeId);
+  }
+
+  /// Like the database: the public place's rating is the average of the
+  /// accepted reviews, or the rating it started with when there are none.
+  void _refreshAverage(String placeId) {
     final index = _public.indexWhere((place) => place.id == placeId);
     if (index < 0) return;
+    final accepted = [
+      for (final rating in ratings)
+        if (rating.placeId == placeId && rating.status == RatingStatus.approved)
+          rating.stars,
+    ];
     final old = _public[index];
     _public[index] = Place(
       id: old.id,
@@ -108,11 +202,34 @@ class FakePlaceService implements PlaceService {
       imageUrl: old.imageUrl,
       description: old.description,
       descriptionRo: old.descriptionRo,
-      rating: stars.toDouble(),
-      ratingCount: 1,
+      rating: accepted.isEmpty
+          ? _startingRatings[placeId] ?? 0
+          : (accepted.reduce((a, b) => a + b) / accepted.length * 10)
+                    .roundToDouble() /
+                10,
+      ratingCount: accepted.length,
       ownerId: old.ownerId,
     );
   }
+
+  /// [rating] with a new status, or marked as the reader's own.
+  static Rating _changed(
+    Rating rating, {
+    RatingStatus? status,
+    String? statusReason,
+    bool? mine,
+  }) => Rating(
+    stars: rating.stars,
+    comment: rating.comment,
+    status: status ?? rating.status,
+    statusReason: status == null ? rating.statusReason : statusReason,
+    author: rating.author,
+    placeId: rating.placeId,
+    placeName: rating.placeName,
+    userId: rating.userId,
+    updatedAt: rating.updatedAt,
+    mine: mine ?? rating.mine,
+  );
 
   void _checkOnline() {
     if (offline) {

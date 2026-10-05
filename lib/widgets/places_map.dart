@@ -3,12 +3,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:top_places/models/place.dart';
+import 'package:top_places/utils/clusters.dart';
 import 'package:top_places/utils/links.dart';
-import 'package:top_places/widgets/mini_place_card.dart';
 import 'package:top_places/widgets/place_marker.dart';
+import 'package:top_places/widgets/place_sheet.dart';
 
-/// OpenStreetMap with a marker for every place. Tapping a marker shows a
-/// small card; tapping the map hides it.
+/// How wide a marker is.
+const _markerSize = 48.0;
+
+/// How wide a bubble of several places is. Markers closer than that share
+/// one, so that no two touch.
+const _bubbleSize = 56.0;
+
+/// From this zoom on, every place has its own marker, even when close.
+const _separateZoom = 17.0;
+
+/// OpenStreetMap with a marker for every place. Places too close to tell
+/// apart share one bubble, which splits when the map zooms in. Tapping a
+/// marker opens the place in a sheet: small at first, the whole page when
+/// dragged up.
 class PlacesMap extends StatefulWidget {
   const PlacesMap({super.key, required this.places});
 
@@ -50,66 +63,123 @@ class _PlacesMapState extends State<PlacesMap> {
     super.dispose();
   }
 
+  /// Zooms in on [places], until their markers separate.
+  void _zoomTo(List<Place> places) {
+    _mapController.fitCamera(
+      CameraFit.coordinates(
+        coordinates: [for (final place in places) LatLng(place.lat, place.lng)],
+        padding: const EdgeInsets.all(80),
+        maxZoom: _separateZoom,
+      ),
+    );
+  }
+
+  /// Opens the sheet of [place]; its marker stays marked until it closes.
+  Future<void> _open(Place place) async {
+    setState(() => _selected = place);
+    await showPlaceSheet(context, place);
+    if (mounted) setState(() => _selected = null);
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Hide the card when its place has been filtered out.
+    // No marked marker when its place has been filtered out.
     final selected = widget.places.contains(_selected) ? _selected : null;
 
-    return Stack(
-      children: [
-        FlutterMap(
-          mapController: _mapController,
-          options: MapOptions(
-            initialCenter: const LatLng(45.9, 24.9), // the middle of Romania
-            initialZoom: 6,
-            initialCameraFit: widget.places.isEmpty ? null : _fitAllPlaces,
-            minZoom: 4,
-            maxZoom: 19,
-            interactionOptions: InteractionOptions(
-              flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-              // Without this, Ctrl + drag still rotates the map on desktop.
-              cursorKeyboardRotationOptions:
-                  CursorKeyboardRotationOptions.disabled(),
-              // Keep the keyboard focus on the search bar when the map opens.
-              keyboardOptions: const KeyboardOptions(autofocus: false),
-            ),
-            onTap: (tapPosition, point) => setState(() => _selected = null),
-          ),
-          children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              // The OpenStreetMap tile policy asks apps to identify themselves.
-              userAgentPackageName: 'com.tudorrrr.top_places',
-            ),
-            MarkerLayer(
-              markers: [
-                for (final place in widget.places)
-                  Marker(
-                    point: LatLng(place.lat, place.lng),
-                    width: 48,
-                    height: 48,
-                    child: PlaceMarker(
-                      place: place,
-                      selected: place == selected,
-                      onTap: () => setState(() => _selected = place),
-                    ),
-                  ),
-              ],
-            ),
-            // The policy also asks for this credit, always visible on the map.
-            const _OsmCredit(),
-          ],
+    return FlutterMap(
+      mapController: _mapController,
+      options: MapOptions(
+        initialCenter: const LatLng(45.9, 24.9), // the middle of Romania
+        initialZoom: 6,
+        initialCameraFit: widget.places.isEmpty ? null : _fitAllPlaces,
+        minZoom: 4,
+        maxZoom: 19,
+        interactionOptions: InteractionOptions(
+          flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+          // Without this, Ctrl + drag still rotates the map on desktop.
+          cursorKeyboardRotationOptions:
+              CursorKeyboardRotationOptions.disabled(),
+          // Keep the keyboard focus on the search bar when the map opens.
+          keyboardOptions: const KeyboardOptions(autofocus: false),
         ),
-        if (selected != null)
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 40,
-            child: MiniPlaceCard(place: selected),
-          ),
+      ),
+      children: [
+        TileLayer(
+          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          // The OpenStreetMap tile policy asks apps to identify themselves.
+          userAgentPackageName: 'com.tudorrrr.top_places',
+        ),
+        _Markers(
+          places: widget.places,
+          selected: selected,
+          onOpen: _open,
+          onZoomTo: _zoomTo,
+        ),
+        // The policy also asks for this credit, always visible on the map.
+        const _OsmCredit(),
       ],
     );
   }
+}
+
+/// The markers, with the places too close to tell apart at this zoom in one
+/// bubble. Built again whenever the map moves.
+class _Markers extends StatelessWidget {
+  const _Markers({
+    required this.places,
+    required this.selected,
+    required this.onOpen,
+    required this.onZoomTo,
+  });
+
+  final List<Place> places;
+  final Place? selected;
+  final ValueChanged<Place> onOpen;
+  final ValueChanged<List<Place>> onZoomTo;
+
+  @override
+  Widget build(BuildContext context) {
+    final camera = MapCamera.of(context);
+    final groups = camera.zoom >= _separateZoom
+        ? [
+            for (final place in places) [place],
+          ]
+        : groupNearby(
+            places,
+            (place) => camera.projectAtZoom(LatLng(place.lat, place.lng)),
+            distance: _bubbleSize,
+          );
+
+    return MarkerLayer(
+      markers: [
+        for (final group in groups)
+          if (group case [final place])
+            Marker(
+              point: LatLng(place.lat, place.lng),
+              width: _markerSize,
+              height: _markerSize,
+              child: PlaceMarker(
+                place: place,
+                selected: place == selected,
+                onTap: () => onOpen(place),
+              ),
+            )
+          else
+            Marker(
+              point: _middle(group),
+              width: _bubbleSize,
+              height: _bubbleSize,
+              child: ClusterMarker(places: group, onTap: () => onZoomTo(group)),
+            ),
+      ],
+    );
+  }
+
+  /// The point in the middle of [places].
+  static LatLng _middle(List<Place> places) => LatLng(
+    places.fold(0.0, (sum, place) => sum + place.lat) / places.length,
+    places.fold(0.0, (sum, place) => sum + place.lng) / places.length,
+  );
 }
 
 /// "© OpenStreetMap contributors" in the bottom right corner, linking to the

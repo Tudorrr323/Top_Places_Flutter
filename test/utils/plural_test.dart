@@ -10,4 +10,10 @@ void main() {
     expect(resultsLabel(20), '20 de rezultate');
     expect(resultsLabel(101), '101 rezultate');
   });
+
+  test('countLabel works for any noun', () {
+    expect(countLabel(1, 'recenzie', 'recenzii'), '1 recenzie');
+    expect(countLabel(12, 'recenzie', 'recenzii'), '12 recenzii');
+    expect(countLabel(100, 'recenzie', 'recenzii'), '100 de recenzii');
+  });
 }

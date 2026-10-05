@@ -209,9 +209,15 @@ void main() {
     expect(find.textContaining('engleză'), findsNothing);
   });
 
-  testWidgets('without Supabase there are no ratings to give', (tester) async {
+  testWidgets('without Supabase the reviews tab says why it is empty', (
+    tester,
+  ) async {
     await openLink(tester, '/locations/cafe-new-world');
 
-    expect(find.text('Note'), findsNothing);
+    await tester.tap(find.text('Recenzii'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('conectată la Supabase'), findsOneWidget);
+    expect(find.text('Recenzia ta'), findsNothing);
   });
 }

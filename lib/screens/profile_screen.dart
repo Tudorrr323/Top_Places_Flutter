@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:top_places/models/profile.dart';
 import 'package:top_places/screens/admin_places_screen.dart';
 import 'package:top_places/screens/admin_users_screen.dart';
+import 'package:top_places/screens/ratings_moderation_screen.dart';
 import 'package:top_places/view_models/account_view_model.dart';
 import 'package:top_places/widgets/dialogs.dart';
 import 'package:top_places/widgets/my_places.dart';
@@ -293,16 +294,26 @@ class _AccountDetails extends StatelessWidget {
     );
   }
 
-  /// What the role adds: an operator's places, or the request to become an
-  /// operator.
+  /// What the role adds: an operator's places and their reviews, the
+  /// admin's tools, or the request to become an operator.
   List<Widget> _roleSection(BuildContext context, AccountViewModel account) {
+    void open(Widget screen) =>
+        Navigator.of(context)
+            .push(MaterialPageRoute<void>(builder: (context) => screen));
+    final reviews = FilledButton.tonalIcon(
+      onPressed: () => open(const RatingsModerationScreen()),
+      icon: const Icon(Icons.reviews_outlined),
+      label: Text(
+        profile.role == Role.admin
+            ? 'Recenzii: acceptări și ștergeri'
+            : 'Recenziile localurilor mele',
+      ),
+    );
+
     if (profile.role == Role.admin) {
       // A suspended admin keeps the role but loses the tools, in the
       // database as well.
       if (profile.isSuspended) return const [];
-      void open(Widget screen) =>
-          Navigator.of(context)
-              .push(MaterialPageRoute<void>(builder: (context) => screen));
       return [
         Semantics(
           header: true,
@@ -323,11 +334,17 @@ class _AccountDetails extends StatelessWidget {
           icon: const Icon(Icons.manage_accounts_outlined),
           label: const Text('Utilizatori și operatori'),
         ),
+        const SizedBox(height: 8),
+        reviews,
       ];
     }
     if (profile.role == Role.operator) {
-      // A new key for every loaded profile: the list loads again with it.
-      return [MyPlaces(key: ObjectKey(profile), canEdit: !profile.isSuspended)];
+      return [
+        // A new key for every loaded profile: the list loads again with it.
+        MyPlaces(key: ObjectKey(profile), canEdit: !profile.isSuspended),
+        // Suspended, the operator no longer decides about reviews.
+        if (!profile.isSuspended) ...[const SizedBox(height: 16), reviews],
+      ];
     }
     if (profile.isSuspended) return const [];
     return switch (profile.operatorRequest) {

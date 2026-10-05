@@ -17,13 +17,28 @@ function check(condition, name) {
   }
 }
 
-async function main() {
+// The SQL files of the project, in the order they are run in Supabase.
+const steps = [
+  'schema.sql',
+  '002_public_places.sql',
+  '003_reviews_by_admins.sql',
+  '004_ratings.sql',
+  '005_reviews.sql',
+  '006_admin_reviews.sql',
+];
+
+// A new database with the first [count] steps run.
+async function newDatabase(count = steps.length) {
   const db = new PGlite();
   await db.exec(fs.readFileSync(path.join(__dirname, 'supabase_env.sql'), 'utf8'));
-  await db.exec(fs.readFileSync(path.join(__dirname, '..', 'schema.sql'), 'utf8'));
-  await db.exec(fs.readFileSync(path.join(__dirname, '..', '002_public_places.sql'), 'utf8'));
-  await db.exec(fs.readFileSync(path.join(__dirname, '..', '003_reviews_by_admins.sql'), 'utf8'));
-  await db.exec(fs.readFileSync(path.join(__dirname, '..', '004_ratings.sql'), 'utf8'));
+  for (const step of steps.slice(0, count)) {
+    await db.exec(fs.readFileSync(path.join(__dirname, '..', step), 'utf8'));
+  }
+  return db;
+}
+
+async function main() {
+  const db = await newDatabase();
 
   async function signUp(email, firstName, lastName) {
     const result = await db.query(
@@ -127,6 +142,7 @@ async function main() {
   await as(boss, "update public.places set status = 'approved' where id = $1", [place.id]);
   check((await publicCount()) === 21, 'an approved place becomes public');
   await as(ion, 'insert into public.ratings (place_id, stars) values ($1, 4)', [place.id]);
+  await as(ana, "update public.ratings set status = 'approved' where place_id = $1", [place.id]);
   await as(ana, "update public.places set description = 'Ceai bun, liniște și prăjituri de casă.' where id = $1", [place.id]);
   row = (await as(ana, 'select status, rating from public.places where id = $1', [place.id])).rows[0];
   check(row.status === 'pending' && Number(row.rating) === 4, "the owner's edit goes back to review and keeps the rating");
@@ -203,51 +219,139 @@ async function main() {
   row = (await as(boss, 'select first_name from public.profiles where id = $1', [ion])).rows[0];
   check(row.first_name === 'Ionuț', 'once reactivated, it can be changed again');
 
-  console.log('Ratings');
+  console.log('Reviews');
   const dan = await signUp('dan@test.ro', 'Dan', 'Pop');
-  const rate = (userId, placeId, stars) => as(userId,
-    'insert into public.ratings (place_id, stars) values ($1, $2) ' +
-    'on conflict (place_id, user_id) do update set stars = excluded.stars',
-    [placeId, stars]);
+  const rate = (userId, placeId, stars, comment = null) => as(userId,
+    'insert into public.ratings (place_id, stars, comment) values ($1, $2, $3) ' +
+    'on conflict (place_id, user_id) do update set stars = excluded.stars, comment = excluded.comment',
+    [placeId, stars, comment]);
+  const decide = (moderator, placeId, userId, status, reason = null) => as(moderator,
+    'update public.ratings set status = $3, status_reason = $4 ' +
+    'where place_id = $1 and user_id = $2 returning status',
+    [placeId, userId, status, reason]);
   const ratingOf = async (placeId) => {
     const found = (await as(null,
       'select rating, rating_count from public.public_places where id = $1', [placeId])).rows[0];
-    return [Number(found.rating), found.rating_count];
+    return String([Number(found.rating), found.rating_count]);
   };
-  check(String(await ratingOf('cafe-new-world')) === '4.7,0',
-    'an original place keeps the rating of the old app until rated');
+  const reviewsOf = async (userId, placeId) =>
+    (await as(userId, 'select * from public.place_ratings($1)', [placeId])).rows;
+
+  check((await ratingOf('cafe-new-world')) === '4.7,0', 'an original place keeps the rating of the old app');
   await rate(dan, 'cafe-new-world', 2);
-  check(String(await ratingOf('cafe-new-world')) === '2,1', 'the first rating replaces it');
+  check((await ratingOf('cafe-new-world')) === '4.7,0', 'a new review waits, and does not count yet');
+  check((await reviewsOf(null, 'cafe-new-world')).length === 0, 'nor is it public');
+  row = (await decide(dan, 'cafe-new-world', dan, 'approved')).rows[0];
+  check(row.status === 'pending', 'the author cannot accept their own review');
+  await decide(boss, 'cafe-new-world', dan, 'approved');
+  check((await ratingOf('cafe-new-world')) === '2,1', 'accepted, it replaces the old rating');
   await rate(ion, 'cafe-new-world', 5);
-  check(String(await ratingOf('cafe-new-world')) === '3.5,2', 'the rating is the average of the ratings');
-  await rate(dan, 'cafe-new-world', 3);
-  check(String(await ratingOf('cafe-new-world')) === '4,2', 'rating again changes the stars, not the count');
+  await decide(boss, 'cafe-new-world', ion, 'approved');
+  check((await ratingOf('cafe-new-world')) === '3.5,2', 'the rating is the average of the accepted reviews');
+  await rate(dan, 'cafe-new-world', 3, '  Cafea bună, dar aglomerat.  ');
+  check((await ratingOf('cafe-new-world')) === '5,1', 'a changed review waits again, and stops counting');
+  row = (await as(dan, "select status, comment from public.ratings where place_id = 'cafe-new-world'")).rows[0];
+  check(row.status === 'pending' && row.comment === 'Cafea bună, dar aglomerat.', 'the message is kept, without the spaces around it');
+  check(await fails(decide(boss, 'cafe-new-world', dan, 'rejected')), 'rejecting a review without a reason fails');
+  await decide(boss, 'cafe-new-world', dan, 'rejected', 'Limbaj nepotrivit');
+  row = (await as(dan, "select status, status_reason from public.ratings where place_id = 'cafe-new-world'")).rows[0];
+  check(row.status === 'rejected' && row.status_reason === 'Limbaj nepotrivit', 'the author sees that it was rejected, and why');
+  await as(boss, "update public.ratings set stars = 1, comment = 'Altceva' where place_id = 'cafe-new-world' and user_id = $1", [dan]);
+  row = (await as(dan, "select stars, comment from public.ratings where place_id = 'cafe-new-world'")).rows[0];
+  check(row.stars === 3 && row.comment === 'Cafea bună, dar aglomerat.', 'whoever moderates cannot change what the author wrote');
+  await decide(boss, 'cafe-new-world', dan, 'approved');
+  check((await ratingOf('cafe-new-world')) === '4,2', 'accepted again, it counts again');
+  row = await reviewsOf(null, 'cafe-new-world');
+  check(row.length === 2 && row[0].author === 'Dan P.' && row[0].comment === 'Cafea bună, dar aglomerat.' && row[0].stars === 3,
+    'everyone reads the accepted reviews, newest first');
+  check(!('user_id' in row[0]) && !('email' in row[0]) && row.every((review) => !review.mine),
+    'with only the first name and an initial, never the account');
+  check((await reviewsOf(dan, 'cafe-new-world')).filter((review) => review.mine).map((review) => review.author).join() === 'Dan P.',
+    'the author sees which review is theirs');
+
+  console.log('The rules of a review');
   check(await fails(as(dan, "insert into public.ratings (place_id, stars) values ('cafe-new-world', 1)")),
-    'one rating per account and place');
+    'one review per account and place');
   check(await fails(rate(dan, 'burger-shack', 6)), 'the stars go from 1 to 5');
+  check(await fails(rate(dan, 'burger-shack', 4, 'x'.repeat(501))), 'the message has at most 500 characters');
   check(await fails(as(null, "insert into public.ratings (place_id, stars) values ('burger-shack', 5)")),
-    'visitors who are not signed in cannot rate');
-  check(await fails(rate(ana, place.id, 5)), 'an operator cannot rate her own place');
+    'visitors who are not signed in cannot review');
+  check(await fails(rate(ana, place.id, 5)), 'an operator cannot review her own place');
   const waiting = (await as(ana,
     "insert into public.places (name, address, city, lat, lng, description) " +
     "values ('Cofetăria Ana', 'Str. Cuza Vodă, Nr. 1, Iași', 'Iași', 47.16, 27.58, 'Prăjituri de casă și cafea bună.') " +
     'returning id')).rows[0];
-  check(await fails(rate(dan, waiting.id, 5)), 'a place under review cannot be rated');
+  check(await fails(rate(dan, waiting.id, 5)), 'a place under review cannot be reviewed');
   check(await fails(as(dan, "insert into public.ratings (place_id, user_id, stars) values ('burger-shack', $1, 5)", [ion])),
-    "nobody rates in someone else's name");
-  row = (await as(ion, 'select user_id from public.ratings')).rows;
-  check(row.length === 2 && row.every((rating) => rating.user_id === ion), 'each account sees only its own ratings');
-  check((await as(dan, 'update public.ratings set stars = 1 where user_id = $1 returning stars', [ion])).rows.length === 0,
-    "nobody changes someone else's rating");
+    "nobody reviews in someone else's name");
   await as(dan, "update public.ratings set place_id = 'burger-shack' where place_id = 'cafe-new-world'");
-  row = (await as(dan, 'select place_id from public.ratings')).rows;
-  check(row.length === 1 && row[0].place_id === 'cafe-new-world', 'a rating cannot move to another place');
-  check(await fails(as(dan, 'delete from public.ratings')), 'ratings are not deleted in the app');
+  check((await as(dan, "select 1 from public.ratings where place_id = 'burger-shack'")).rows.length === 0,
+    'a review cannot move to another place');
+  check((await as(dan, 'update public.ratings set stars = 1 where user_id = $1 returning stars', [ion])).rows.length === 0,
+    "nobody changes someone else's review");
+  row = (await as(ion, 'select user_id from public.ratings')).rows;
+  check(row.length === 2 && row.every((review) => review.user_id === ion), 'a user sees only their own reviews');
+
+  console.log('The operator decides');
+  await rate(dan, place.id, 5, 'Ceai foarte bun.');
+  row = (await as(ana, 'select * from public.ratings_to_moderate()')).rows;
+  check(row.length === 2 && row.every((review) => review.place_id === place.id) &&
+    row.some((review) => review.author === 'Dan P.' && review.status === 'pending' && review.place_name === 'Ceainăria Ana'),
+    'the operator sees the reviews of her places, and only those');
+  check((await as(dan, 'select * from public.ratings_to_moderate()')).rows.length === 0, 'a user has nothing to decide');
+  check(await fails(as(null, 'select * from public.ratings_to_moderate()')), 'nor have visitors');
+  check((await decide(ion, place.id, dan, 'approved')).rows.length === 0, 'nobody else decides about them');
+  await decide(ana, place.id, dan, 'approved');
+  check((await ratingOf(place.id)) === '4.5,2', 'she accepts a review, and it counts');
+  check((await as(boss, 'select * from public.ratings_to_moderate()')).rows.length === 4, 'an admin sees the reviews of every place');
+
+  console.log('Deleting a review');
+  check((await as(ion, 'delete from public.ratings where user_id = $1 returning 1', [dan])).rows.length === 0,
+    "nobody deletes someone else's review");
+  await as(dan, 'delete from public.ratings where place_id = $1', [place.id]);
+  check((await ratingOf(place.id)) === '4,1', 'the author deletes their review, and it stops counting');
+  await as(boss, "delete from public.ratings where place_id = 'cafe-new-world' and user_id = $1", [dan]);
+  check((await ratingOf('cafe-new-world')) === '5,1', 'an admin deletes any review');
+
+  console.log('Suspended accounts');
+  await rate(dan, 'cafe-new-world', 3);
+  await decide(boss, 'cafe-new-world', dan, 'approved');
+  check((await ratingOf('cafe-new-world')) === '4,2', 'before: two accepted reviews');
   await as(boss, "update public.profiles set suspended_reason = 'Note false' where id = $1", [ion]);
-  check(String(await ratingOf('cafe-new-world')) === '3,1', "a suspended account's ratings stop counting");
-  check(await fails(rate(ion, 'burger-shack', 5)), 'and it cannot rate');
+  check((await ratingOf('cafe-new-world')) === '3,1', "a suspended account's reviews stop counting");
+  check((await reviewsOf(null, 'cafe-new-world')).length === 1, 'and are hidden');
+  check(await fails(rate(ion, 'burger-shack', 5)), 'it cannot review');
+  check((await as(ion, 'delete from public.ratings returning 1')).rows.length === 0, 'nor delete its reviews');
   await as(boss, 'update public.profiles set suspended_reason = null where id = $1', [ion]);
-  check(String(await ratingOf('cafe-new-world')) === '4,2', 'reactivated, its ratings count again');
+  check((await ratingOf('cafe-new-world')) === '4,2', 'reactivated, its reviews count again');
+
+  console.log("An admin's own reviews");
+  const statusOf = async (userId, placeId) => (await as(userId,
+    'select status from public.ratings where place_id = $1 and user_id = $2', [placeId, userId])).rows[0].status;
+  await rate(boss, 'burger-shack', 4, 'Burgeri buni.');
+  check((await statusOf(boss, 'burger-shack')) === 'approved' && (await reviewsOf(null, 'burger-shack')).length === 1,
+    'on a place without an operator, it is public at once: nobody else would accept it');
+  await rate(boss, 'burger-shack', 5, 'Burgeri foarte buni.');
+  check((await statusOf(boss, 'burger-shack')) === 'approved', 'and stays public when changed');
+  await rate(boss, place.id, 5);
+  check((await statusOf(boss, place.id)) === 'pending', "on an operator's place, it waits for the operator");
+  await rate(dan, 'burger-shack', 2);
+  check((await statusOf(dan, 'burger-shack')) === 'pending', "a user's review still waits");
+
+  console.log('Step 6 on a database with reviews');
+  const old = await newDatabase(steps.length - 1);
+  const oldAdmin = (await old.query(
+    "insert into auth.users (email, raw_user_meta_data) values ('sef@test.ro', '{}') returning id")).rows[0].id;
+  await old.query("update public.profiles set role = 'admin' where id = $1", [oldAdmin]);
+  await old.query("select set_config('request.jwt.claims', $1, false)", [JSON.stringify({ sub: oldAdmin, role: 'authenticated' })]);
+  await old.exec('set role authenticated');
+  await old.query("insert into public.ratings (place_id, stars) values ('burger-shack', 4)");
+  await old.exec('reset role');
+  // Then step 6, run in the SQL Editor: no one signed in.
+  await old.query("select set_config('request.jwt.claims', '', false)");
+  await old.exec(fs.readFileSync(path.join(__dirname, '..', steps[steps.length - 1]), 'utf8'));
+  row = (await old.query("select r.status, p.rating_count from public.ratings r join public.places p on p.id = r.place_id")).rows[0];
+  check(row.status === 'approved' && row.rating_count === 1, "an admin's review that was waiting becomes public, and counts");
 
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);

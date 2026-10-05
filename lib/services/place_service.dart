@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:top_places/models/place.dart';
+import 'package:top_places/models/rating.dart';
 
 /// A failed action on places, with a message the user can act on.
 class PlaceException implements Exception {
@@ -60,6 +61,18 @@ class PlaceReview {
   final Map<String, Object> row;
 }
 
+/// What a place's operator (or an admin) decides about a review. The
+/// database asks for a reason to reject one.
+class RatingDecision {
+  RatingDecision.approve() : row = {'status': 'approved'};
+
+  RatingDecision.reject(String reason)
+    : row = {'status': 'rejected', 'status_reason': reason.trim()};
+
+  /// The columns to change.
+  final Map<String, Object> row;
+}
+
 /// Places stored in Supabase. An interface, so that the tests can use a fake.
 abstract class PlaceService {
   /// What everyone sees: approved places whose owner is not suspended.
@@ -80,12 +93,30 @@ abstract class PlaceService {
   /// An admin's decision about a place.
   Future<Place> review(String id, PlaceReview review);
 
-  /// The stars the signed-in account gave the place, or null if none.
-  Future<int?> myRating(String placeId);
+  /// The signed-in account's review of the place, in any status, or null.
+  Future<Rating?> myRating(String placeId);
 
-  /// Gives the place 1 to 5 stars, or changes the ones given before. The
-  /// database then updates the place's average.
-  Future<void> ratePlace(String placeId, int stars);
+  /// Saves the signed-in account's review of the place, new or changed.
+  /// Either way it waits for the place's operator, and counts once accepted.
+  Future<Rating> saveRating(
+    String placeId, {
+    required int stars,
+    String comment = '',
+  });
+
+  /// Deletes a review: the author's own, or any of them for an admin.
+  Future<void> deleteRating(Rating rating);
+
+  /// The accepted reviews of a public place, newest first. Everyone sees
+  /// them, signed in or not.
+  Future<List<Rating>> placeRatings(String placeId);
+
+  /// The reviews the signed-in account decides about: those of an
+  /// operator's places, or of every place for an admin.
+  Future<List<Rating>> ratingsToModerate();
+
+  /// Accepts a review, or rejects it with a reason.
+  Future<void> decideRating(Rating rating, RatingDecision decision);
 }
 
 class SupabasePlaceService implements PlaceService {
@@ -149,34 +180,96 @@ class SupabasePlaceService implements PlaceService {
       _update(id, review.row);
 
   @override
-  Future<int?> myRating(String placeId) async {
+  Future<Rating?> myRating(String placeId) async {
     final user = _client.auth.currentUser;
     if (user == null) return null;
     final row = await _guard(
       () => _client
           .from('ratings')
-          .select('stars')
+          .select()
           .eq('place_id', placeId)
           .eq('user_id', user.id)
           .maybeSingle(),
     );
-    return row?['stars'] as int?;
+    return row == null ? null : Rating.fromRow(row);
   }
 
   @override
-  Future<void> ratePlace(String placeId, int stars) async {
+  Future<Rating> saveRating(
+    String placeId, {
+    required int stars,
+    String comment = '',
+  }) async {
     final user = _client.auth.currentUser;
     if (user == null) {
-      throw const PlaceException('Intră în cont ca să dai o notă.');
+      throw const PlaceException('Intră în cont ca să scrii o recenzie.');
     }
-    // One row per account and place: rating again changes the stars.
-    await _guard(
-      () => _client.from('ratings').upsert({
-        'place_id': placeId,
-        'user_id': user.id,
-        'stars': stars,
-      }, onConflict: 'place_id,user_id'),
+    final message = comment.trim();
+    // One row per account and place: writing again changes it.
+    final row = await _guard(
+      () => _client
+          .from('ratings')
+          .upsert({
+            'place_id': placeId,
+            'user_id': user.id,
+            'stars': stars,
+            'comment': message.isEmpty ? null : message,
+          }, onConflict: 'place_id,user_id')
+          .select()
+          .single(),
     );
+    return Rating.fromRow(row);
+  }
+
+  @override
+  Future<void> deleteRating(Rating rating) async {
+    final rows = await _guard(
+      () => _client
+          .from('ratings')
+          .delete()
+          .eq('place_id', rating.placeId)
+          .eq('user_id', rating.userId)
+          .select(),
+    );
+    // Nothing deleted: the rules do not allow it.
+    if (rows.isEmpty) {
+      throw const PlaceException('Nu ai voie să ștergi această recenzie.');
+    }
+  }
+
+  @override
+  Future<List<Rating>> placeRatings(String placeId) =>
+      _ratingsFrom('place_ratings', {'place': placeId});
+
+  @override
+  Future<List<Rating>> ratingsToModerate() =>
+      _ratingsFrom('ratings_to_moderate', const {});
+
+  @override
+  Future<void> decideRating(Rating rating, RatingDecision decision) async {
+    await _guard(
+      () => _client
+          .from('ratings')
+          .update(decision.row)
+          .eq('place_id', rating.placeId)
+          .eq('user_id', rating.userId)
+          .select()
+          .single(),
+    );
+  }
+
+  /// Calls one of the review functions in the database. They return only
+  /// the author's name, never the email.
+  Future<List<Rating>> _ratingsFrom(
+    String function,
+    Map<String, Object> params,
+  ) async {
+    final rows = await _guard(
+      () => _client.rpc<List<dynamic>>(function, params: params),
+    );
+    return [
+      for (final row in rows) Rating.fromRow(row as Map<String, dynamic>),
+    ];
   }
 
   Future<Place> _update(String id, Map<String, Object> values) async {
