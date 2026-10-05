@@ -21,6 +21,7 @@ async function main() {
   const db = new PGlite();
   await db.exec(fs.readFileSync(path.join(__dirname, 'supabase_env.sql'), 'utf8'));
   await db.exec(fs.readFileSync(path.join(__dirname, '..', 'schema.sql'), 'utf8'));
+  await db.exec(fs.readFileSync(path.join(__dirname, '..', '002_public_places.sql'), 'utf8'));
 
   async function signUp(email, firstName, lastName) {
     const result = await db.query(
@@ -155,6 +156,17 @@ async function main() {
     'suspending without a reason fails');
   await as(boss, 'update public.profiles set suspended_reason = null where id = $1', [ana]);
   check((await publicCount()) === 21, 'reactivated: her place is public again');
+
+  console.log('The public list (public_places)');
+  const publicView = async (userId) =>
+    Number((await as(userId, 'select count(*) from public.public_places')).rows[0].count);
+  check((await publicView(null)) === 21, 'everyone sees the 21 approved places');
+  await as(ana, "update public.places set description = 'Ceai bun, liniște și cozonac de casă.' where id = $1", [place.id]);
+  const adminReads = Number((await as(boss, 'select count(*) from public.places')).rows[0].count);
+  check(adminReads === 21 && (await publicView(boss)) === 20,
+    'an admin reads every place, but the public list hides the one under review');
+  check(await fails(as(boss, "update public.places set status = 'approved', rating = null where id = $1", [place.id])),
+    'approving a place without a rating fails');
 
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed === 0 ? 0 : 1);

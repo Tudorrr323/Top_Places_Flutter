@@ -29,7 +29,9 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final _input = TextEditingController();
   final _messages = <ChatMessage>[];
-  late final BotEngine _bot;
+
+  /// Made again when the places change (the live list from Supabase).
+  late BotEngine _bot;
 
   /// Null when the app runs without a Gemini key.
   late final GeminiService? _gemini;
@@ -82,7 +84,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   /// What Gemini is told before every question: its role, the rules, and
   /// every place in the app, so that it doesn't invent others.
-  late final String _instructions = [
+  String get _instructions => [
     'Ești asistentul aplicației Top Places, care recomandă localuri din '
         'România. Răspunzi în română, pe scurt (cel mult 3 propoziții), '
         'fără Markdown.',
@@ -131,6 +133,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final repository = context.watch<PlacesRepository>();
+    if (!identical(repository.places, _bot.places)) {
+      _bot = BotEngine(places: repository.places, cities: repository.cities);
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Asistent')),
       body: Center(

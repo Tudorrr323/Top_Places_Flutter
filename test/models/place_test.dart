@@ -42,6 +42,29 @@ void main() {
     });
   });
 
+  test('Place.fromRow reads a row from Supabase', () {
+    final place = Place.fromRow({
+      'id': 'ceainaria-ana',
+      'name': 'Ceainăria Ana',
+      'address': 'Str. Lăpușneanu, Nr. 3, Iași',
+      'city': 'Iași',
+      'lat': 47.16,
+      'lng': 27,
+      'image_url': '',
+      'description': 'Ceai bun și liniște, aproape de centru.',
+      'description_ro': null,
+      'rating': null,
+      'status': 'pending',
+      'status_reason': null,
+      'owner_id': 'a1b2',
+    });
+
+    expect(place.lng, 27.0);
+    expect(place.rating, 0, reason: 'not rated yet');
+    expect(place.status, PlaceStatus.pending);
+    expect(place.ownerId, 'a1b2');
+  });
+
   test('City.fromJson reads lat and lng', () {
     final city = City.fromJson({'name': 'Galați', 'lat': 45.43, 'lng': 28.05});
     expect(city.name, 'Galați');

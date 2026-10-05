@@ -69,6 +69,17 @@ void main() {
     expect(viewModel.visiblePlaces, hasLength(3));
   });
 
+  test('setPlaces swaps the places and keeps the search', () {
+    final viewModel = ExploreViewModel(places)..setQuery('iasi');
+    var notifications = 0;
+    viewModel.addListener(() => notifications++);
+
+    viewModel.setPlaces(places.take(4).toList());
+
+    expect(viewModel.visiblePlaces.single.name, "Café 'New World'");
+    expect(notifications, 1);
+  });
+
   test('cities lists only the 13 cities with places, A to Z', () {
     final cities = ExploreViewModel(places).cities;
     expect(cities, hasLength(13));

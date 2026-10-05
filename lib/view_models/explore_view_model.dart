@@ -10,7 +10,7 @@ import 'package:top_places/utils/text_normalize.dart';
 class ExploreViewModel extends ChangeNotifier {
   ExploreViewModel(this._allPlaces);
 
-  final List<Place> _allPlaces;
+  List<Place> _allPlaces;
   String _query = '';
   Filters _filters = const Filters();
   bool _showMap = false;
@@ -30,6 +30,14 @@ class ExploreViewModel extends ChangeNotifier {
     final names = {for (final place in _allPlaces) place.city}.toList();
     names.sort((a, b) => normalize(a).compareTo(normalize(b)));
     return names;
+  }
+
+  /// New places, e.g. the live list from Supabase. The search and the
+  /// filters stay.
+  void setPlaces(List<Place> places) {
+    if (identical(places, _allPlaces)) return;
+    _allPlaces = places;
+    notifyListeners();
   }
 
   void setQuery(String value) {

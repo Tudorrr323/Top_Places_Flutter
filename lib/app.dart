@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:top_places/router.dart';
 import 'package:top_places/services/account_service.dart';
 import 'package:top_places/services/gemini_service.dart';
+import 'package:top_places/services/place_service.dart';
 import 'package:top_places/services/places_repository.dart';
 import 'package:top_places/view_models/account_view_model.dart';
 import 'package:top_places/view_models/explore_view_model.dart';
@@ -47,10 +48,18 @@ class _TopPlacesAppState extends State<TopPlacesApp> {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider<PlacesRepository>.value(value: widget.repository),
+        // A ChangeNotifier: it changes when the live places arrive.
+        ChangeNotifierProvider<PlacesRepository>.value(
+          value: widget.repository,
+        ),
+        Provider<PlaceService?>.value(value: widget.repository.remote),
         Provider<GeminiService?>.value(value: widget.gemini),
-        ChangeNotifierProvider(
+        // Gets the new places whenever the repository changes; the search
+        // and the filters stay.
+        ChangeNotifierProxyProvider<PlacesRepository, ExploreViewModel>(
           create: (context) => ExploreViewModel(widget.repository.places),
+          update: (context, repository, explore) =>
+              explore!..setPlaces(repository.places),
         ),
         ChangeNotifierProvider(
           create: (context) => AccountViewModel(widget.accounts),
