@@ -8,6 +8,7 @@ import 'package:top_places/models/place.dart';
 import 'package:top_places/models/profile.dart';
 import 'package:top_places/services/gemini_service.dart';
 import 'package:top_places/services/places_repository.dart';
+import 'package:top_places/widgets/my_places.dart';
 
 import '../fake_account_service.dart';
 import '../fake_gemini.dart';
@@ -221,5 +222,57 @@ void main() {
       );
       expect(find.text('Tradu în engleză'), findsNothing);
     });
+  });
+
+  testWidgets('with many places, a few show; all, with filters, one tap away', (
+    tester,
+  ) async {
+    final many = [
+      for (var number = 1; number <= 6; number++)
+        Place(
+          id: 'p$number',
+          name: 'Local $number',
+          address: 'Str. A, Nr. $number',
+          city: number.isEven ? 'Iași' : 'Cluj-Napoca',
+          lat: 47.1,
+          lng: 27.5,
+          imageUrl: '',
+          description: 'Un local de test, numărul $number.',
+          rating: 0,
+          status: switch (number) {
+            1 => PlaceStatus.rejected,
+            2 => PlaceStatus.pending,
+            _ => PlaceStatus.approved,
+          },
+          statusReason: number == 1 ? 'Lipsește poza' : null,
+        ),
+    ];
+    await openProfile(tester, mine: many);
+
+    // The three added last, the newest first.
+    expect(find.byType(MyPlaceCard), findsNWidgets(3));
+    expect(find.text('Local 6'), findsOne);
+    expect(find.text('Local 1'), findsNothing);
+
+    await tester.ensureVisible(find.text('Vezi toate (6)'));
+    await tester.tap(find.text('Vezi toate (6)'));
+    await tester.pumpAndSettle();
+    expect(find.byType(MyPlaceCard), findsNWidgets(6));
+    expect(find.text('Suspendate (0)'), findsNothing, reason: 'no such place');
+
+    await tester.tap(find.text('Respinse (1)'));
+    await tester.pumpAndSettle();
+    expect(find.byType(MyPlaceCard), findsOne);
+    expect(find.textContaining('Lipsește poza'), findsOne);
+
+    await tester.tap(find.text('Toate (6)'));
+    await tester.tap(find.text('Iași'));
+    await tester.pumpAndSettle();
+    expect(find.byType(MyPlaceCard), findsNWidgets(3));
+
+    await tester.enterText(find.byType(TextField), 'local 4');
+    await tester.pumpAndSettle();
+    expect(find.byType(MyPlaceCard), findsOne);
+    expect(find.text('Local 4'), findsOne);
   });
 }

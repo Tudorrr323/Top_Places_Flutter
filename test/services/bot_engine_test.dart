@@ -144,4 +144,37 @@ void main() {
       expect(placeIn(answer), isNotNull);
     });
   });
+
+  group('the language of a message', () {
+    test('Romanian and English are understood', () {
+      for (final message in [
+        'Vreau să beau ceva în Cluj-Napoca',
+        'Cea mai bună cafea din Iași',
+        'I want a drink in Cluj-Napoca',
+        'Where can I eat?',
+        // Diacritics of other languages, in the names of places.
+        'Caută Café New World',
+        'Fast-Food Döner King',
+        'Iasi',
+      ]) {
+        expect(BotEngine.speaksLanguageOf(message), isTrue, reason: message);
+      }
+    });
+
+    test('other languages are recognised', () {
+      for (final message in [
+        'Ich möchte in Cluj etwas trinken',
+        'Wo kann ich in Iași gut essen?',
+        'Je voudrais manger à Brașov',
+        '¿Dónde puedo comer en Sibiu?',
+        'Vorrei mangiare qualcosa a Timișoara',
+        'Dove si mangia bene a Sibiu?',
+        'Hol tudok enni Kolozsváron? Szeretnék egy jó éttermet',
+        'Где поесть в Клуже?',
+        '札幌でおすすめのカフェは?',
+      ]) {
+        expect(BotEngine.speaksLanguageOf(message), isFalse, reason: message);
+      }
+    });
+  });
 }

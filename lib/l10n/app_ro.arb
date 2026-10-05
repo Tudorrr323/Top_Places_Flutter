@@ -722,5 +722,27 @@
         "type": "String"
       }
     }
-  }
+  },
+  "seeAllPlaces": "Vezi toate ({count})",
+  "@seeAllPlaces": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "withCount": "{label} ({count})",
+  "@withCount": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "all": "Toate",
+  "inReview": "În verificare",
+  "allCities": "Toate orașele"
 }

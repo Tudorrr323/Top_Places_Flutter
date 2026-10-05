@@ -1104,4 +1104,23 @@ class AppLocalizationsRo extends AppLocalizations {
   String reviewAuthorYou(String author) {
     return '$author (tu)';
   }
+
+  @override
+  String seeAllPlaces(int count) {
+    return 'Vezi toate ($count)';
+  }
+
+  @override
+  String withCount(String label, int count) {
+    return '$label ($count)';
+  }
+
+  @override
+  String get all => 'Toate';
+
+  @override
+  String get inReview => 'În verificare';
+
+  @override
+  String get allCities => 'Toate orașele';
 }

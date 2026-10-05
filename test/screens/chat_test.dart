@@ -92,9 +92,18 @@ void main() {
     const answer =
         "Pentru ceva dulce, încearcă prăjiturile de la Café 'New World', "
         'din Iași.';
-    await openChat(tester, gemini: fakeGemini(answer));
+    final asked = <String>[];
+    await openChat(
+      tester,
+      gemini: fakeGemini(
+        answer,
+        onRequest: (request) => asked.add(request.body),
+      ),
+    );
     await send(tester, 'Am chef de ceva dulce, ce-mi recomanzi?');
 
+    // Romanian, in the language of the app.
+    expect(asked.single, contains('Limba răspunsului'));
     expect(find.text(answer), findsOneWidget);
     expect(
       find.text('Generat cu Gemini. Poate conține greșeli.'),
@@ -102,5 +111,43 @@ void main() {
     );
     // The answer names one place, so it can be shown on the map.
     expect(find.text('Arată pe hartă'), findsOneWidget);
+  });
+
+  testWidgets(
+    'with a key, another language goes to Gemini, which answers in it',
+    (tester) async {
+      const answer = 'In Cluj-Napoca empfehle ich das Restaurant The Old Inn.';
+      final asked = <String>[];
+      await openChat(
+        tester,
+        gemini: fakeGemini(
+          answer,
+          onRequest: (request) => asked.add(request.body),
+        ),
+      );
+
+      // The rules would answer this one, by the city, in Romanian.
+      await send(tester, 'Ich möchte in Cluj etwas essen');
+
+      // In English, even though the app is in Romanian: from Romanian
+      // instructions, Gemini answers some languages in Romanian.
+      expect(asked.single, contains('Language of the answer'));
+      expect(asked.single, isNot(contains('Localurile:')));
+      expect(find.text(answer), findsOneWidget);
+      expect(find.text('Arată pe hartă'), findsOneWidget);
+    },
+  );
+
+  testWidgets('Romanian still gets the rules, without Gemini', (tester) async {
+    final asked = <String>[];
+    await openChat(
+      tester,
+      gemini: fakeGemini('-', onRequest: (request) => asked.add(request.body)),
+    );
+
+    await send(tester, 'Vreau să beau ceva în Cluj-Napoca');
+
+    expect(asked, isEmpty);
+    expect(find.textContaining('În Cluj-Napoca poți bea ceva la'), findsOne);
   });
 }

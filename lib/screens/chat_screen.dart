@@ -53,7 +53,13 @@ class _ChatScreenState extends State<ChatScreen> {
     if (message.isEmpty || _waiting) return;
     final bot = _bot!;
     final l10n = context.l10n;
-    final reply = bot.reply(message);
+    // The rules speak Romanian and English. With a key, a message in
+    // another language goes to Gemini, which answers in it. Told in
+    // English: from Romanian instructions, Gemini answered Italian, which
+    // looks like Romanian, in Romanian.
+    final otherLanguage =
+        _gemini != null && !BotEngine.speaksLanguageOf(message);
+    final reply = otherLanguage ? bot.notUnderstood : bot.reply(message);
     final gemini = reply == bot.notUnderstood ? _gemini : null;
     setState(() {
       _messages.add(ChatMessage.user(message));
@@ -64,7 +70,14 @@ class _ChatScreenState extends State<ChatScreen> {
     _input.clear();
     if (gemini == null) return;
 
-    final answer = await _askGemini(gemini, message, l10n);
+    final answer = await _askGemini(
+      gemini,
+      message,
+      l10n,
+      instructions: _instructions(
+        otherLanguage ? lookupAppLocalizations(const Locale('en')) : l10n,
+      ),
+    );
     if (!mounted) return;
     setState(() {
       _messages.add(answer);
@@ -72,9 +85,9 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  /// What Gemini is told before every question, in the language of the
-  /// app: its role, the rules, and every place in the app, so that it
-  /// doesn't invent others.
+  /// What Gemini is told before every question, in the language of [l10n]:
+  /// its role, the rules, and every place in the app, so that it doesn't
+  /// invent others.
   String _instructions(AppLocalizations l10n) {
     final romanian = l10n.localeName == 'ro';
     String rating(Place place) => switch ((place.isRated, romanian)) {
@@ -86,22 +99,35 @@ class _ChatScreenState extends State<ChatScreen> {
     return [
       if (romanian) ...[
         'Ești asistentul aplicației Top Places, care recomandă localuri din '
-            'România. Răspunzi în română, pe scurt (cel mult 3 propoziții), '
-            'fără Markdown.',
+            'România. Răspunzi pe scurt (cel mult 3 propoziții), fără '
+            'Markdown.',
         'Recomanzi doar localuri din lista de mai jos și le scrii numele '
             'exact ca în listă. Nu inventa alte localuri, adrese sau prețuri.',
         'Dacă întrebarea nu are legătură cu localurile sau cu ieșitul în '
             'oraș, spui politicos că te ocupi doar de localurile din aplicație.',
+        'Limba răspunsului: aceeași cu a întrebării utilizatorului (germană, '
+            'franceză, spaniolă, italiană, maghiară etc.), chiar dacă aceste '
+            'instrucțiuni și lista sunt în română. Atenție: italiana, spaniola '
+            'și franceza seamănă cu româna, dar nu sunt română; unei întrebări '
+            'în italiană îi răspunzi în italiană. Doar dacă întrebarea e în '
+            'română sau limba nu se poate ști, răspunzi în română.',
         'Localurile:',
       ] else ...[
         'You are the assistant of the Top Places app, which recommends places '
-            'in Romania. Answer in English, briefly (at most 3 sentences), '
-            'without Markdown.',
+            'in Romania. Answer briefly (at most 3 sentences), without '
+            'Markdown.',
         'Recommend only places from the list below, and write their names '
             'exactly as in the list. Do not invent other places, addresses or '
             'prices.',
         'If the question is not about places or going out, say politely that '
             'you only help with the places in the app.',
+        "Language of the answer: the same as the language of the user's "
+            'question (German, French, Spanish, Italian, Hungarian and so '
+            'on), even though these instructions and the list are in English. '
+            'Italian, Spanish and French look like Romanian but are not '
+            'Romanian; a question in Italian gets an answer in Italian. Only '
+            'when the question is in English or its language cannot be told, '
+            'answer in English.',
         'The places:',
       ],
       for (final place in _bot!.places)
@@ -113,13 +139,11 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<ChatMessage> _askGemini(
     GeminiService gemini,
     String message,
-    AppLocalizations l10n,
-  ) async {
+    AppLocalizations l10n, {
+    required String instructions,
+  }) async {
     try {
-      final text = await gemini.generate(
-        message,
-        instructions: _instructions(l10n),
-      );
+      final text = await gemini.generate(message, instructions: instructions);
       return ChatMessage.ai(text, action: _placeNamedIn(text));
     } on GeminiException catch (error) {
       return ChatMessage.bot(

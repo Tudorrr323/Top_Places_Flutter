@@ -1093,4 +1093,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String reviewAuthorYou(String author) {
     return '$author (you)';
   }
+
+  @override
+  String seeAllPlaces(int count) {
+    return 'See all ($count)';
+  }
+
+  @override
+  String withCount(String label, int count) {
+    return '$label ($count)';
+  }
+
+  @override
+  String get all => 'All';
+
+  @override
+  String get inReview => 'In review';
+
+  @override
+  String get allCities => 'All cities';
 }

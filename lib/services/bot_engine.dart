@@ -119,6 +119,34 @@ const _worst = [
   'lowest rated',
 ];
 
+/// Common words of the other languages that visitors to Romania write in:
+/// German, French, Spanish, Italian and Hungarian, without diacritics.
+/// Words that are also Romanian or English ("la", "de", "bere", "hol") are
+/// left out, so that they cannot mislead.
+const _otherLanguageWords = {
+  // German
+  'ich', 'mochte', 'kann', 'konnen', 'gibt', 'essen', 'trinken', 'bitte',
+  'und', 'nicht', 'ein', 'eine', 'einen', 'einem', 'ist', 'sind', 'wie',
+  'welche', 'empfehlen', 'kaffee', 'bier', 'danke', 'haben', 'suche',
+  'gerne', 'wo', 'gut', 'guten',
+  // French
+  'je', 'voudrais', 'manger', 'boire', 'quel', 'quelle', 'merci', 'avec',
+  'dans', 'bonjour', 'cherche', 'recommandez', 'bonne',
+  // Spanish
+  'quiero', 'donde', 'comer', 'beber', 'gracias', 'hola', 'recomiendas',
+  'recomienda', 'busco', 'puedo', 'para', 'mejor', 'bueno',
+  // Italian
+  'voglio', 'vorrei', 'mangiare', 'mangia', 'consigli', 'grazie', 'buon',
+  'posso', 'vicino', 'migliore', 'dove', 'bene', 'cosa',
+  // Hungarian
+  'szeretnek', 'enni', 'inni', 'kerem', 'koszonom', 'etterem', 'kave',
+};
+
+/// A letter of another alphabet: Cyrillic, Greek, Arabic, Chinese and so
+/// on. Romanian and the other Latin alphabets end at U+024F.
+final _otherAlphabet = RegExp(r'[^\u0000-\u024F]');
+final _letter = RegExp(r'\p{L}', unicode: true);
+
 /// Short or English names that people use for two of the cities.
 const _cityNicknames = {'cluj': 'Cluj-Napoca', 'bucharest': 'București'};
 
@@ -152,6 +180,19 @@ class BotEngine {
   /// Set after asking "În ce oraș…?", so that an answer with only a city
   /// continues the conversation. The old app forgot the question.
   _Kind? _waitingForCity;
+
+  /// False when [message] is clearly in another language than Romanian or
+  /// English: another alphabet, or a common word of German, French,
+  /// Spanish, Italian or Hungarian. The rules understand only Romanian and
+  /// English; Gemini answers the others, in their own language.
+  ///
+  /// Diacritics alone prove nothing: names like "Café" or "Döner" have them.
+  static bool speaksLanguageOf(String message) {
+    final letters = _letter.allMatches(message).map((match) => match[0]!);
+    if (letters.any(_otherAlphabet.hasMatch)) return false;
+    final words = _plain(message).split(RegExp(r'[^a-z]+'));
+    return !words.any(_otherLanguageWords.contains);
+  }
 
   ChatMessage reply(String message) {
     final text = _plain(message);

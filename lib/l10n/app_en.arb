@@ -298,5 +298,10 @@
   "filterAllStars": "All ({count})",
   "filterStars": "{stars} ★ ({count})",
   "noReviewsWithStars": "{stars, plural, =1{No 1-star reviews.} other{No {stars}-star reviews.}}",
-  "reviewAuthorYou": "{author} (you)"
+  "reviewAuthorYou": "{author} (you)",
+  "seeAllPlaces": "See all ({count})",
+  "withCount": "{label} ({count})",
+  "all": "All",
+  "inReview": "In review",
+  "allCities": "All cities"
 }

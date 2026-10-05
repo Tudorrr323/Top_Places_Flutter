@@ -1891,6 +1891,36 @@ abstract class AppLocalizations {
   /// In ro, this message translates to:
   /// **'{author} (tu)'**
   String reviewAuthorYou(String author);
+
+  /// No description provided for @seeAllPlaces.
+  ///
+  /// In ro, this message translates to:
+  /// **'Vezi toate ({count})'**
+  String seeAllPlaces(int count);
+
+  /// No description provided for @withCount.
+  ///
+  /// In ro, this message translates to:
+  /// **'{label} ({count})'**
+  String withCount(String label, int count);
+
+  /// No description provided for @all.
+  ///
+  /// In ro, this message translates to:
+  /// **'Toate'**
+  String get all;
+
+  /// No description provided for @inReview.
+  ///
+  /// In ro, this message translates to:
+  /// **'În verificare'**
+  String get inReview;
+
+  /// No description provided for @allCities.
+  ///
+  /// In ro, this message translates to:
+  /// **'Toate orașele'**
+  String get allCities;
 }
 
 class _AppLocalizationsDelegate
