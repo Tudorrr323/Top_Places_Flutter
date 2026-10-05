@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:top_places/models/profile.dart';
 import 'package:top_places/view_models/account_view_model.dart';
+import 'package:top_places/widgets/my_places.dart';
 
 /// The Profil tab: sign in or create an account; once signed in, the
 /// account, the request to become an operator and signing out.
@@ -280,13 +281,14 @@ class _AccountDetails extends StatelessWidget {
     );
   }
 
-  /// What the role adds: the request to become an operator, for now.
+  /// What the role adds: an operator's places, or the request to become an
+  /// operator.
   List<Widget> _roleSection(BuildContext context, AccountViewModel account) {
     if (profile.role == Role.admin) {
       return const [Text('Ești administrator.')];
     }
     if (profile.role == Role.operator) {
-      return const [Text('Ești operator: poți adăuga localuri.')];
+      return [MyPlaces(canEdit: !profile.isSuspended)];
     }
     if (profile.isSuspended) return const [];
     return switch (profile.operatorRequest) {
