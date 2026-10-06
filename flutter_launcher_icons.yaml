@@ -1,0 +1,22 @@
+# The icons of the app on Android, the web and Windows, made from the logo
+# of the original app (assets/images/logo.png). After changing them:
+#
+#   dart run flutter_launcher_icons
+#
+# assets/icon/logo_padded.png is the same logo at 72% of its size, on its
+# own blue (#2A7DC1). Android and installed web apps crop icons to a circle
+# or a rounded square, which would cut off "TOPPLACES".
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/images/logo.png"
+  adaptive_icon_background: "#2A7DC1"
+  adaptive_icon_foreground: "assets/icon/logo_padded.png"
+  web:
+    generate: true
+    image_path: "assets/icon/logo_padded.png"
+    background_color: "#2A7DC1"
+    theme_color: "#2A7DC1"
+  windows:
+    generate: true
+    icon_size: 256

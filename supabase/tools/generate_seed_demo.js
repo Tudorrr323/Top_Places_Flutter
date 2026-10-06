@@ -532,13 +532,15 @@ for (const [name, city, kind, street, owned] of places) {
     createdDaysAgo: whole(30, 720),
   });
 }
-for (const place of placeRows) {
+/** Fails here, rather than in the SQL Editor, on what the database refuses. */
+function check(place) {
   for (const [label, value, min, max] of [['name', place.name, 2, 80], ['address', place.address, 3, 120],
     ['description', place.description, 10, 300], ['description_ro', place.descriptionRo, 10, 300]]) {
     if (value.trim().length < min || value.length > max) throw new Error(`${place.id}: ${label}`);
   }
   if (place.lat < 43.5 || place.lat > 48.5 || place.lng < 20 || place.lng > 30) throw new Error(place.id);
 }
+placeRows.forEach(check);
 
 const reviewed = [
   ...placeRows.map((place) => ({ id: place.id, kind: place.kind, quality: place.quality, count: place.reviews })),
@@ -547,8 +549,8 @@ const reviewed = [
   })),
 ];
 
-const ratingRows = [];
-for (const place of reviewed) {
+/** Writes the reviews of [place] into [rows]: who, how many stars, what message, and when. */
+function writeReviews(place, rows) {
   const authors = [...reviewers].sort(() => random() - 0.5).slice(0, Math.min(place.count, reviewers.length));
   const usedComments = new Set();
   for (const author of authors) {
@@ -570,12 +572,90 @@ for (const place of reviewed) {
     // rejected; the rest are public.
     const roll = random();
     const status = roll < 0.05 ? 'pending' : roll < 0.07 ? 'rejected' : 'approved';
-    ratingRows.push({
+    rows.push({
       place: place.id, user: author.id, stars, comment, status,
       reason: status === 'rejected' ? pick(rejectionReasons) : null,
       days: whole(1, 540), hours: whole(0, 23),
     });
   }
+}
+
+const ratingRows = [];
+for (const place of reviewed) writeReviews(place, ratingRows);
+
+// --- Waiting for an admin ----------------------------------------------------------
+// What an admin finds to decide: people who asked to become operators, and
+// places waiting for approval, new or changed by their operator. Made with
+// a random sequence of their own, after everything above, so that the data
+// above stays the same as before they were added.
+state = 20261007;
+
+// More accounts that cannot sign in: operators, whose places wait, and
+// users who asked to become operators.
+const newAccounts = [
+  ...[['Marius', 'Ene'], ['Camelia', 'Pop'], ['Gelu', 'Ardelean']]
+    .map(([first, last]) => ({ first, last, wants: 'operator' })),
+  ...[['Petru', 'Sima'], ['Lavinia', 'Radu'], ['Cosmin', 'Dragomir'], ['Ilinca', 'Voicu'], ['Ovidiu', 'Tănase']]
+    .map(([first, last]) => ({ first, last, wants: 'request' })),
+].map((account) => {
+  const email = `${slug(account.first)}.${slug(account.last)}@demo.ro`;
+  if (usedEmails.has(email)) throw new Error(`Twice: ${email}`);
+  usedEmails.add(email);
+  return { ...account, id: uuid(), email };
+});
+const operatorEmail = (n) => newAccounts.filter((account) => account.wants === 'operator')[n].email;
+
+// What an operator changed in a place that was public: the description
+// says what is new.
+const changes = [
+  ['New: brunch at weekends.', 'Nou: brunch în weekend.'],
+  ['Now open on Mondays too.', 'Acum deschis și lunea.'],
+  ['A new terrace, with heaters in winter.', 'O terasă nouă, cu încălzitoare iarna.'],
+  ['A new menu, with dishes of the season.', 'Un meniu nou, cu preparate de sezon.'],
+];
+
+// The places waiting: name, city, kind, street, the owner's email, and
+// whether it is a change to a place that was public, with its reviews,
+// rather than a new place. The test operator has one of each.
+const waiting = [
+  ['Bistro Olga', 'Cluj-Napoca', 'bistro', 'Str. Horea', 'operator@test.ro', false],
+  ['Terasa Olga', 'Brașov', 'brunch', 'Str. Postăvarului', 'operator@test.ro', true],
+  ['Cuptorul cu Lemne', 'Iași', 'pizza', 'Str. Sărărie', operatorEmail(0), false],
+  ['Crama Ene', 'Iași', 'wine', 'Str. Costache Negri', operatorEmail(0), true],
+  ['Matcha Lab', 'Cluj-Napoca', 'tea', 'Str. Universității', operatorEmail(1), false],
+  ['Poke Corner', 'Timișoara', 'sushi', 'Bd. Revoluției din 1989', operatorEmail(1), false],
+  ['Pescăruș Bistro', 'Constanța', 'seafood', 'Str. Ștefan cel Mare', operatorEmail(1), true],
+  ['La Doi Pași', 'Sibiu', 'romanian', 'Str. Cetății', operatorEmail(2), false],
+  ['Cafeneaua din Cetate', 'Oradea', 'coffee', 'Str. Independenței', operatorEmail(2), true],
+];
+const waitingRows = waiting.map(([name, city, kind, street, owner, changed]) => {
+  const center = cities[city];
+  if (!center) throw new Error(`No city ${city}`);
+  const id = slug(name);
+  if (seen.has(id)) throw new Error(`Twice: ${id}`);
+  seen.add(id);
+  const [en, ro] = pick(kinds[kind].text);
+  const more = changed ? pick(changes) : random() < 0.6 ? pick(extras) : null;
+  return {
+    id, name, city, kind, owner, changed,
+    address: `${street}, Nr. ${whole(1, 120)}, ${city}`,
+    lat: +(center.lat + between(-0.008, 0.008)).toFixed(5),
+    lng: +(center.lng + between(-0.012, 0.012)).toFixed(5),
+    image: photo(pick(kinds[kind].photos)),
+    description: more ? `${en} ${more[0]}` : en,
+    descriptionRo: more ? `${ro} ${more[1]}` : ro,
+    quality: 4.9 - 2.4 * Math.pow(random(), 2.2),
+    // A change comes from a place public for a long time, with reviews; a
+    // new place was added in the last days.
+    reviews: changed ? whole(8, 30) : 0,
+    createdDaysAgo: changed ? whole(560, 720) : whole(0, 4),
+  };
+});
+waitingRows.forEach(check);
+
+const waitingRatingRows = [];
+for (const place of waitingRows.filter((row) => row.changed)) {
+  writeReviews({ id: place.id, kind: place.kind, quality: place.quality, count: place.reviews }, waitingRatingRows);
 }
 
 // --- The SQL ----------------------------------------------------------------------
@@ -584,11 +664,30 @@ const ago = (days, hours = 0) => `now() - interval '${days} days ${hours} hours'
 const lines = [];
 const out = (text) => lines.push(text);
 
+/** Inserts [rows] of reviews, each dated on its own day. */
+const insertRatings = (rows) => `insert into public.ratings (
+  place_id, user_id, stars, comment, status, status_reason, created_at,
+  updated_at
+)
+select place_id, user_id::uuid, stars, comment, status, status_reason,
+  now() - make_interval(days => days, hours => hours),
+  now() - make_interval(days => days, hours => hours)
+from (values
+${rows.map((r) => `  (${sql(r.place)},'${r.user}',${r.stars},${sql(r.comment)},'${r.status}',` +
+    `${sql(r.reason)},${r.days},${r.hours})`).join(',\n')}
+) as review (
+  place_id, user_id, stars, comment, status, status_reason, days, hours
+)
+on conflict (place_id, user_id) do nothing;`;
+
 out(`-- Top Places: a large demo, ${placeRows.length} more places across Romania and ` +
   `${ratingRows.length} reviews by ${reviewers.length} people.`);
+out(`-- For the admins, ${waitingRows.length} places waiting for approval, new or changed by ` +
+  `their operator, and ${newAccounts.filter((a) => a.wants === 'request').length} requests to become an operator.`);
 out(`-- Run it in the SQL Editor after 007_bilingual_places.sql, and after
 -- conturi_test.sql if you use it: the test operator then owns a few of the
--- places and has reviews to accept. Running it again changes nothing.
+-- places, has reviews to accept and places waiting. Running it again
+-- changes nothing, and keeps what was decided in the app meanwhile.
 --
 -- Made by supabase/tools/generate_seed_demo.js: change that, not this file.
 -- seed_demo_remove.sql takes it all out again.
@@ -623,21 +722,61 @@ out(`
 -- them with today and send them to review waits meanwhile; the one that
 -- keeps the averages up to date works as always.
 alter table public.ratings disable trigger guard_rating;
+`);
+out(insertRatings(ratingRows));
 
-insert into public.ratings (
-  place_id, user_id, stars, comment, status, status_reason, created_at,
-  updated_at
-)
-select place_id, user_id::uuid, stars, comment, status, status_reason,
-  now() - make_interval(days => days, hours => hours),
-  now() - make_interval(days => days, hours => hours)
-from (values`);
-out(ratingRows.map((r) => `  (${sql(r.place)},'${r.user}',${r.stars},${sql(r.comment)},'${r.status}',` +
-  `${sql(r.reason)},${r.days},${r.hours})`).join(',\n'));
-out(`) as review (
-  place_id, user_id, stars, comment, status, status_reason, days, hours
-)
-on conflict (place_id, user_id) do nothing;`);
+out(`
+-- 4. More accounts that cannot sign in: operators, whose places wait for an
+-- admin, and users who asked to become operators. The role or the request
+-- is given only when the account is made here, so that a decision taken in
+-- the app meanwhile stays.
+do $$
+declare
+  account record;
+begin
+  for account in select * from (values`);
+out(newAccounts.map((a) => `    ('${a.id}', ${sql(a.email)}, ${sql(a.first)}, ${sql(a.last)}, '${a.wants}')`).join(',\n'));
+out(`  ) as a (id, email, first_name, last_name, wants)
+  loop
+    insert into auth.users (
+      instance_id, id, aud, role, email, encrypted_password,
+      email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at,
+      updated_at, confirmation_token, email_change, email_change_token_new,
+      recovery_token
+    ) values (
+      '00000000-0000-0000-0000-000000000000', account.id::uuid,
+      'authenticated', 'authenticated', account.email, '', now(),
+      '{"provider": "email", "providers": ["email"]}',
+      jsonb_build_object('first_name', account.first_name,
+        'last_name', account.last_name),
+      now(), now(), '', '', '', ''
+    )
+    on conflict (id) do nothing;
+    if found then
+      update public.profiles
+      set role = case account.wants when 'operator' then 'operator' else 'user' end,
+          operator_request = case account.wants when 'request' then 'pending' end
+      where id = account.id::uuid;
+    end if;
+  end loop;
+end $$;
+
+-- 5. Places waiting for an admin: new ones, without reviews yet, and
+-- changes to places that were public. A changed place keeps its reviews and
+-- its rating, and is hidden until an admin approves it again.
+insert into public.places (
+  id, name, address, city, lat, lng, image_url, description, description_ro,
+  status, owner_id, created_at
+) values`);
+out(waitingRows.map((p) => `  (${sql(p.id)}, ${sql(p.name)}, ${sql(p.address)}, ${sql(p.city)}, ${p.lat}, ${p.lng}, ` +
+  `${sql(p.image)}, ${sql(p.description)}, ${sql(p.descriptionRo)}, 'pending', ` +
+  `(select id from public.profiles where email = ${sql(p.owner)}), ${ago(p.createdDaysAgo)})`).join(',\n') +
+  '\non conflict (id) do nothing;');
+
+out(`
+-- 6. The reviews of the changed places, from when they were public.
+`);
+out(insertRatings(waitingRatingRows));
 
 out(`
 alter table public.ratings enable trigger guard_rating;
@@ -648,7 +787,9 @@ commit;
 select
   (select count(*) from public.public_places) as public_places,
   (select count(*) from public.ratings where status = 'approved') as public_reviews,
-  (select count(*) from public.ratings where status = 'pending') as waiting_reviews;
+  (select count(*) from public.ratings where status = 'pending') as waiting_reviews,
+  (select count(*) from public.places where status = 'pending') as waiting_places,
+  (select count(*) from public.profiles where operator_request = 'pending') as operator_requests;
 `);
 fs.writeFileSync(path.join(__dirname, '..', 'seed_demo.sql'), lines.join('\n'));
 
@@ -661,7 +802,7 @@ begin;
 delete from auth.users where email like '%@demo.ro';
 
 delete from public.places where id in (
-${placeRows.map((p) => `  ${sql(p.id)}`).join(',\n')}
+${[...placeRows, ...waitingRows].map((p) => `  ${sql(p.id)}`).join(',\n')}
 );
 
 commit;
@@ -670,4 +811,6 @@ commit;
 console.log(`${placeRows.length} places, ${reviewers.length} reviewers, ${ratingRows.length} reviews ` +
   `(${ratingRows.filter((r) => r.status === 'pending').length} waiting, ` +
   `${ratingRows.filter((r) => r.status === 'rejected').length} rejected, ` +
-  `${ratingRows.filter((r) => r.comment).length} with a message)`);
+  `${ratingRows.filter((r) => r.comment).length} with a message); ` +
+  `${waitingRows.length} places waiting (${waitingRows.filter((p) => p.changed).length} changed, ` +
+  `${waitingRatingRows.length} reviews), ${newAccounts.length} more accounts`);

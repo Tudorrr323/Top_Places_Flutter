@@ -70,7 +70,16 @@ delete from public.places where id in (
   'dunarea-bistro',
   'burger-beer',
   'delta-fish',
-  'kyoto-sushi'
+  'kyoto-sushi',
+  'bistro-olga',
+  'terasa-olga',
+  'cuptorul-cu-lemne',
+  'crama-ene',
+  'matcha-lab',
+  'poke-corner',
+  'pescarus-bistro',
+  'la-doi-pasi',
+  'cafeneaua-din-cetate'
 );
 
 commit;

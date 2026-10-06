@@ -7,6 +7,7 @@ import 'package:top_places/models/place.dart';
 import 'package:top_places/services/gemini_service.dart';
 import 'package:top_places/services/place_service.dart';
 import 'package:top_places/services/places_repository.dart';
+import 'package:top_places/widgets/map_tiles.dart';
 
 /// Adds a place, or edits one when [place] is given. The checks are the same
 /// as in the database, so a mistake shows here instead of as an error from
@@ -403,13 +404,7 @@ class _PositionPicker extends StatelessWidget {
                 onTap: (tapPosition, point) => onChanged(point),
               ),
               children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.tudorrrr.top_places',
-                  tileBuilder: theme.brightness == Brightness.dark
-                      ? darkModeTileBuilder
-                      : null,
-                ),
+                const MapTiles(),
                 if (position != null)
                   MarkerLayer(
                     markers: [

@@ -10,6 +10,7 @@ import 'package:top_places/models/place.dart';
 import 'package:top_places/services/location_service.dart';
 import 'package:top_places/utils/clusters.dart';
 import 'package:top_places/utils/links.dart';
+import 'package:top_places/widgets/map_tiles.dart';
 import 'package:top_places/widgets/place_marker.dart';
 import 'package:top_places/view_models/explore_view_model.dart';
 import 'package:top_places/widgets/place_sheet.dart';
@@ -255,15 +256,7 @@ class _PlacesMapState extends State<PlacesMap>
             ),
           ),
           children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              // The OpenStreetMap tile policy asks apps to identify themselves.
-              userAgentPackageName: 'com.tudorrrr.top_places',
-              // Darker in the dark theme, so that it does not glare.
-              tileBuilder: Theme.of(context).brightness == Brightness.dark
-                  ? darkModeTileBuilder
-                  : null,
-            ),
+            const MapTiles(),
             // Under the places, so that they stay easy to tap.
             if (myLocation != null)
               MarkerLayer(

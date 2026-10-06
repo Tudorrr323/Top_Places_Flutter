@@ -1,7 +1,9 @@
 -- Top Places: a large demo, 64 more places across Romania and 2195 reviews by 90 people.
+-- For the admins, 9 places waiting for approval, new or changed by their operator, and 5 requests to become an operator.
 -- Run it in the SQL Editor after 007_bilingual_places.sql, and after
 -- conturi_test.sql if you use it: the test operator then owns a few of the
--- places and has reviews to accept. Running it again changes nothing.
+-- places, has reviews to accept and places waiting. Running it again
+-- changes nothing, and keeps what was decided in the app meanwhile.
 --
 -- Made by supabase/tools/generate_seed_demo.js: change that, not this file.
 -- seed_demo_remove.sql takes it all out again.
@@ -2391,6 +2393,153 @@ from (values
 )
 on conflict (place_id, user_id) do nothing;
 
+-- 4. More accounts that cannot sign in: operators, whose places wait for an
+-- admin, and users who asked to become operators. The role or the request
+-- is given only when the account is made here, so that a decision taken in
+-- the app meanwhile stays.
+do $$
+declare
+  account record;
+begin
+  for account in select * from (values
+    ('f66c0d99-434c-4dce-8b9d-203a3dfa7e70', 'marius.ene@demo.ro', 'Marius', 'Ene', 'operator'),
+    ('3cec48ed-73b8-4779-b701-a077d43b1e78', 'camelia.pop@demo.ro', 'Camelia', 'Pop', 'operator'),
+    ('31ca6742-e3b8-409c-8a12-6cdeb55ce4de', 'gelu.ardelean@demo.ro', 'Gelu', 'Ardelean', 'operator'),
+    ('876d7f50-9dce-4e09-b485-650dd7b067dd', 'petru.sima@demo.ro', 'Petru', 'Sima', 'request'),
+    ('d51191b3-2a72-4687-b573-e026e164284b', 'lavinia.radu@demo.ro', 'Lavinia', 'Radu', 'request'),
+    ('48f44f3e-0ac6-424f-8fb4-b9b9baa924a9', 'cosmin.dragomir@demo.ro', 'Cosmin', 'Dragomir', 'request'),
+    ('366546a4-6c86-4ad7-b34e-d200a8b3e97c', 'ilinca.voicu@demo.ro', 'Ilinca', 'Voicu', 'request'),
+    ('b3795d87-1843-4625-96ef-7c5f7cdc2a73', 'ovidiu.tanase@demo.ro', 'Ovidiu', 'Tănase', 'request')
+  ) as a (id, email, first_name, last_name, wants)
+  loop
+    insert into auth.users (
+      instance_id, id, aud, role, email, encrypted_password,
+      email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at,
+      updated_at, confirmation_token, email_change, email_change_token_new,
+      recovery_token
+    ) values (
+      '00000000-0000-0000-0000-000000000000', account.id::uuid,
+      'authenticated', 'authenticated', account.email, '', now(),
+      '{"provider": "email", "providers": ["email"]}',
+      jsonb_build_object('first_name', account.first_name,
+        'last_name', account.last_name),
+      now(), now(), '', '', '', ''
+    )
+    on conflict (id) do nothing;
+    if found then
+      update public.profiles
+      set role = case account.wants when 'operator' then 'operator' else 'user' end,
+          operator_request = case account.wants when 'request' then 'pending' end
+      where id = account.id::uuid;
+    end if;
+  end loop;
+end $$;
+
+-- 5. Places waiting for an admin: new ones, without reviews yet, and
+-- changes to places that were public. A changed place keeps its reviews and
+-- its rating, and is hidden until an admin approves it again.
+insert into public.places (
+  id, name, address, city, lat, lng, image_url, description, description_ro,
+  status, owner_id, created_at
+) values
+  ('bistro-olga', 'Bistro Olga', 'Str. Horea, Nr. 110, Cluj-Napoca', 'Cluj-Napoca', 46.77668, 23.62693, 'https://images.unsplash.com/photo-1533777857889-4be7c70b33f7', 'Lunch menu on weekdays, slow dinners in the evening, all made from local produce.', 'Meniu de prânz în timpul săptămânii, cine fără grabă seara, totul din produse locale.', 'pending', (select id from public.profiles where email = 'operator@test.ro'), now() - interval '3 days 0 hours'),
+  ('terasa-olga', 'Terasa Olga', 'Str. Postăvarului, Nr. 29, Brașov', 'Brașov', 45.65568, 25.59864, 'https://images.unsplash.com/photo-1525351484163-7529414344d8', 'Avocado toast, granola bowls and good coffee, in a bright room full of plants. Now open on Mondays too.', 'Toast cu avocado, boluri cu granola și cafea bună, într-o sală luminoasă plină de plante. Acum deschis și lunea.', 'pending', (select id from public.profiles where email = 'operator@test.ro'), now() - interval '703 days 0 hours'),
+  ('cuptorul-cu-lemne', 'Cuptorul cu Lemne', 'Str. Sărărie, Nr. 16, Iași', 'Iași', 47.16219, 27.61185, 'https://images.unsplash.com/photo-1458642849426-cfb724f15ef7', 'Neapolitan pizza from a wood-fired oven, with a thin base and puffy crust. Live music on Friday evenings.', 'Pizza napoletană la cuptor cu lemne, cu blat subțire și margini pufoase. Muzică live vineri seara.', 'pending', (select id from public.profiles where email = 'marius.ene@demo.ro'), now() - interval '3 days 0 hours'),
+  ('crama-ene', 'Crama Ene', 'Str. Costache Negri, Nr. 60, Iași', 'Iași', 47.16488, 27.59975, 'https://images.unsplash.com/photo-1470337458703-46ad1756a187', 'A wine bar with over 200 Romanian labels, cheese boards and wine tastings. A new terrace, with heaters in winter.', 'Un wine bar cu peste 200 de etichete românești, platouri cu brânzeturi și degustări. O terasă nouă, cu încălzitoare iarna.', 'pending', (select id from public.profiles where email = 'marius.ene@demo.ro'), now() - interval '682 days 0 hours'),
+  ('matcha-lab', 'Matcha Lab', 'Str. Universității, Nr. 28, Cluj-Napoca', 'Cluj-Napoca', 46.76412, 23.61785, 'https://images.unsplash.com/photo-1445116572660-236099ec97a0', 'A tea house with board games, soft music and home-made biscuits. Open until late.', 'O ceainărie cu jocuri de societate, muzică încet și biscuiți de casă. Deschis până târziu.', 'pending', (select id from public.profiles where email = 'camelia.pop@demo.ro'), now() - interval '3 days 0 hours'),
+  ('poke-corner', 'Poke Corner', 'Bd. Revoluției din 1989, Nr. 76, Timișoara', 'Timișoara', 45.75359, 21.22016, 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c', 'Japanese rolls, poke bowls and green tea, in a minimalist room. Open until late.', 'Rulouri japoneze, poke bowls și ceai verde, într-o sală minimalistă. Deschis până târziu.', 'pending', (select id from public.profiles where email = 'camelia.pop@demo.ro'), now() - interval '3 days 0 hours'),
+  ('pescarus-bistro', 'Pescăruș Bistro', 'Str. Ștefan cel Mare, Nr. 90, Constanța', 'Constanța', 44.18384, 28.62432, 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0', 'Fresh fish and seafood, mussels in white wine and a view of the water. A new terrace, with heaters in winter.', 'Pește proaspăt și fructe de mare, midii în vin alb și vedere spre apă. O terasă nouă, cu încălzitoare iarna.', 'pending', (select id from public.profiles where email = 'camelia.pop@demo.ro'), now() - interval '629 days 0 hours'),
+  ('la-doi-pasi', 'La Doi Pași', 'Str. Cetății, Nr. 47, Sibiu', 'Sibiu', 45.79536, 24.11655, 'https://images.unsplash.com/photo-1529042410759-befb1204b468', 'Grilled mici, traditional stews and local wines, in a courtyard with long tables. Live music on Friday evenings.', 'Mici la grătar, tocănițe tradiționale și vinuri locale, într-o curte cu mese lungi. Muzică live vineri seara.', 'pending', (select id from public.profiles where email = 'gelu.ardelean@demo.ro'), now() - interval '1 days 0 hours'),
+  ('cafeneaua-din-cetate', 'Cafeneaua din Cetate', 'Str. Independenței, Nr. 102, Oradea', 'Oradea', 47.05121, 21.93075, 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb', 'A small café with big windows, good flat whites and a few seats in the sun. Now open on Mondays too.', 'O cafenea mică, cu ferestre mari, flat white bun și câteva locuri în soare. Acum deschis și lunea.', 'pending', (select id from public.profiles where email = 'gelu.ardelean@demo.ro'), now() - interval '674 days 0 hours')
+on conflict (id) do nothing;
+
+-- 6. The reviews of the changed places, from when they were public.
+
+insert into public.ratings (
+  place_id, user_id, stars, comment, status, status_reason, created_at,
+  updated_at
+)
+select place_id, user_id::uuid, stars, comment, status, status_reason,
+  now() - make_interval(days => days, hours => hours),
+  now() - make_interval(days => days, hours => hours)
+from (values
+  ('terasa-olga','fea11158-dd76-4df8-98cd-b613ea919fdb',4,'Almost perfect, booking ahead is a good idea.','approved',null,361,6),
+  ('terasa-olga','4807707f-8673-4dc7-88c8-7cab7665b57c',4,null,'approved',null,145,14),
+  ('terasa-olga','3e62ef91-f62c-4f58-a42e-3bc2ba1a3452',4,'Ouăle Benedict au fost perfecte.','approved',null,348,22),
+  ('terasa-olga','2e5ce719-5f18-43bd-81df-c3a611b96727',4,'Locație frumoasă, muzica puțin prea tare pentru gustul meu.','approved',null,426,14),
+  ('terasa-olga','318ad615-962c-422f-89cc-07d8efee28b8',4,null,'approved',null,115,7),
+  ('terasa-olga','c08cc016-4af4-4ffb-8faa-db384aa34b9f',4,null,'approved',null,522,9),
+  ('terasa-olga','f0910eae-4ede-41a2-bb42-f6827b87275b',3,'Fine for a quick stop.','approved',null,429,7),
+  ('terasa-olga','1c6370d0-4169-4dc5-ba1d-925452c9208b',4,null,'approved',null,200,19),
+  ('terasa-olga','6d2d9505-8ebc-41c7-bb60-0ae88185b1d4',3,'Am așteptat mult la masă, în rest acceptabil.','approved',null,283,23),
+  ('terasa-olga','e0491040-0bd0-4c6e-9511-31f9e63e7155',5,'Worth every penny. Can’t wait to come back.','pending',null,515,18),
+  ('terasa-olga','f5354cc0-91ea-4b21-890a-62938c4d47f6',3,'Food was okay, service was slow.','approved',null,459,6),
+  ('terasa-olga','b570a81b-f164-4286-8206-7c1cf0f78287',4,'O experiență bună per total, recomand rezervarea din timp.','approved',null,476,12),
+  ('terasa-olga','c9776dd6-23c7-420a-bfc3-63916a63093d',4,'Raport calitate-preț bun. Revin sigur.','approved',null,316,2),
+  ('terasa-olga','da59c3be-8d0d-43fa-95c1-cf58e14c8d7c',3,'Mâncarea a fost ok, servirea lentă.','approved',null,352,14),
+  ('terasa-olga','c5223c77-d506-4abf-ac7b-6dc68d5c2bad',3,null,'approved',null,385,17),
+  ('terasa-olga','53df2ef6-dc91-4634-b611-e4caea7219aa',4,'Porții bune și gustoase, parcare greu de găsit.','approved',null,350,13),
+  ('terasa-olga','bbb49c5d-bdeb-4657-a2e6-e3670e9f482a',3,'Decent, dar nimic special.','approved',null,29,22),
+  ('terasa-olga','ee6e4788-a2b3-42fe-b0f9-894a14c35694',3,null,'approved',null,526,19),
+  ('terasa-olga','7ac9104c-a935-4589-b371-4deb8eb8714f',4,null,'approved',null,13,7),
+  ('terasa-olga','0c94e43d-96ce-41e7-b3dc-7bf908777a0a',3,null,'approved',null,121,21),
+  ('terasa-olga','04902d46-8866-4ce4-a3e0-69a997fb1631',4,'Merită încercat, mai ales seara.','approved',null,210,12),
+  ('terasa-olga','987204bb-98fe-4bab-9ce1-32f020954c82',4,'Foarte bun, doar că a durat puțin servirea.','approved',null,408,6),
+  ('terasa-olga','313f2dcf-5464-434e-8efe-1b11ff193698',5,null,'approved',null,20,5),
+  ('terasa-olga','35c4f49c-f6d0-4642-be96-8b819164fcf4',3,'Ok pentru o oprire rapidă.','approved',null,501,9),
+  ('terasa-olga','d868e9e2-4410-4ab9-af1e-5eda1938d0d8',4,null,'approved',null,526,11),
+  ('crama-ene','dc53920b-f0a8-4561-b200-e04c4034b0f6',4,null,'approved',null,26,23),
+  ('crama-ene','8e14bdf4-f52d-437a-9b3f-9ddd4a81f0f3',5,'Ne-au recomandat o Fetească Neagră excelentă.','approved',null,37,0),
+  ('crama-ene','d868e9e2-4410-4ab9-af1e-5eda1938d0d8',4,null,'approved',null,469,20),
+  ('crama-ene','b902861c-3975-46be-aa57-333c4dc35832',4,'Very good, service was a bit slow though.','approved',null,42,11),
+  ('crama-ene','179f9b23-7b73-4f19-aa64-26bfe4d8e86f',5,'Am venit la recomandarea unui prieten și nu am regretat deloc.','approved',null,269,3),
+  ('crama-ene','d897846f-ce15-4ab7-be7d-2f6419123c4f',4,'Mâncare gustoasă, locul e cam aglomerat în weekend.','approved',null,410,18),
+  ('crama-ene','2799aae4-6b21-42d1-83c0-a5e16047b852',4,'Calitate constantă de fiecare dată când am venit.','approved',null,158,12),
+  ('crama-ene','2f84fe78-20a2-4ddb-8ebe-79e9f93736ba',4,null,'approved',null,199,13),
+  ('crama-ene','5b020077-f48e-477d-8912-6e29d3d74f46',4,'Merită încercat, mai ales seara.','approved',null,397,13),
+  ('crama-ene','029d983f-8fb2-465a-bd34-36852e13d84b',5,null,'approved',null,254,4),
+  ('crama-ene','3e95402d-97b7-437c-aa57-2d41a4f52647',5,'They recommended an excellent Fetească Neagră.','approved',null,179,21),
+  ('crama-ene','5b8239ff-1c1b-4db1-8cd7-d5d0647001d7',4,null,'approved',null,369,21),
+  ('crama-ene','c08cc016-4af4-4ffb-8faa-db384aa34b9f',3,'Unele preparate bune, altele uitabile.','approved',null,233,21),
+  ('crama-ene','84eb66af-82d3-4027-9d58-b738f54ec31f',4,null,'approved',null,301,9),
+  ('crama-ene','ee6e4788-a2b3-42fe-b0f9-894a14c35694',4,'Îmi place mult, aș mai adăuga câteva opțiuni vegetariene.','approved',null,182,12),
+  ('pescarus-bistro','dc53920b-f0a8-4561-b200-e04c4034b0f6',5,'Am venit la recomandarea unui prieten și nu am regretat deloc.','approved',null,316,7),
+  ('pescarus-bistro','2d05924c-d741-4637-990d-7b4c8ad3edff',5,null,'approved',null,329,21),
+  ('pescarus-bistro','bbb49c5d-bdeb-4657-a2e6-e3670e9f482a',5,'The mussels in white wine were excellent.','approved',null,353,3),
+  ('pescarus-bistro','90cbcd68-1547-48f7-b6e7-4ef8329e7231',5,'Gust autentic și ingrediente de calitate.','approved',null,75,12),
+  ('pescarus-bistro','ee29b08a-c997-46e8-85b1-345ed83594b0',5,null,'approved',null,507,5),
+  ('pescarus-bistro','5c53ef66-f7a8-475b-bc99-1749c2d80928',4,'Midiile în sos de vin alb au fost excelente.','approved',null,99,2),
+  ('pescarus-bistro','4441d815-a267-4cb1-8518-bcdd710d23b4',5,'Am sărbătorit o aniversare aici și a fost impecabil.','rejected','Limbaj nepotrivit.',237,0),
+  ('pescarus-bistro','854ba0fe-adba-402f-ac73-127fe8a2357a',5,'Best spot in the area, we will be back.','approved',null,108,13),
+  ('pescarus-bistro','cf5e2f1e-05a9-4172-ac8d-992c6969f07d',5,'Worth every penny. Can’t wait to come back.','approved',null,142,16),
+  ('pescarus-bistro','50ca7476-7fb7-4f37-a8d9-f853ea6222c9',4,'Raport calitate-preț bun. Revin sigur.','approved',null,487,14),
+  ('pescarus-bistro','dc81d440-ed79-4d2b-a130-3d9067ddc630',4,'Tasty food, gets crowded on weekends.','approved',null,411,13),
+  ('cafeneaua-din-cetate','d9fcffcc-c758-4a3a-818a-7828829ea2f6',3,'Ok pentru o oprire rapidă.','pending',null,351,5),
+  ('cafeneaua-din-cetate','9ba303b5-2999-42a7-9865-4db5278f0fb2',4,null,'approved',null,323,2),
+  ('cafeneaua-din-cetate','de4a59d7-6fbb-47f4-ba96-550f38093f17',4,'Calitate constantă de fiecare dată când am venit.','approved',null,102,20),
+  ('cafeneaua-din-cetate','7c4d821d-fb30-49fd-bd55-79ea949301f4',4,'Porții bune și gustoase, parcare greu de găsit.','approved',null,378,8),
+  ('cafeneaua-din-cetate','8caa8f06-60b2-4686-8678-3c8207d487f9',4,'Locație frumoasă, muzica puțin prea tare pentru gustul meu.','approved',null,336,19),
+  ('cafeneaua-din-cetate','d7884d05-6334-4ca6-a4d6-49477b02caee',4,'Cel mai bun flat white din oraș.','approved',null,329,7),
+  ('cafeneaua-din-cetate','7899ce1b-464c-4cc3-9f2f-24c8ea5f306e',4,null,'approved',null,214,11),
+  ('cafeneaua-din-cetate','ee6e4788-a2b3-42fe-b0f9-894a14c35694',4,'O experiență bună per total, recomand rezervarea din timp.','approved',null,32,20),
+  ('cafeneaua-din-cetate','313f2dcf-5464-434e-8efe-1b11ff193698',5,'Cel mai bun loc din zonă, revin cu drag.','approved',null,499,8),
+  ('cafeneaua-din-cetate','f6774a49-b325-4adc-9b67-99b7db16f118',4,'Personal drăguț, atmosferă plăcută, desertul putea fi mai bun.','approved',null,24,6),
+  ('cafeneaua-din-cetate','dc53920b-f0a8-4561-b200-e04c4034b0f6',4,'Merită încercat, mai ales seara.','approved',null,90,15),
+  ('cafeneaua-din-cetate','87e42ff8-731a-4313-b6bb-4d16b9f38a5b',4,'Aproape perfect, aș mai lucra la viteza servirii.','approved',null,213,9),
+  ('cafeneaua-din-cetate','3e62ef91-f62c-4f58-a42e-3bc2ba1a3452',5,'Merită fiecare leu. Abia aștept să revin.','approved',null,321,1),
+  ('cafeneaua-din-cetate','4f7d0c93-022e-4e55-9fd1-b8c34a2edfcd',4,'Very good, service was a bit slow though.','approved',null,368,7),
+  ('cafeneaua-din-cetate','318ad615-962c-422f-89cc-07d8efee28b8',5,'Servire rapidă, totul proaspăt și foarte gustos.','pending',null,33,10),
+  ('cafeneaua-din-cetate','a56799e0-5371-4dc8-92e2-eeced39b8d63',4,null,'approved',null,242,21),
+  ('cafeneaua-din-cetate','2799aae4-6b21-42d1-83c0-a5e16047b852',3,'Curat și liniștit, dar meniul e cam limitat.','approved',null,46,20),
+  ('cafeneaua-din-cetate','e0491040-0bd0-4c6e-9511-31f9e63e7155',5,'Friendly staff and outstanding food.','approved',null,435,7),
+  ('cafeneaua-din-cetate','bfce34b2-c553-45c3-a8df-c5bde6568d75',3,null,'approved',null,68,5),
+  ('cafeneaua-din-cetate','f9676974-615a-4a1f-8976-9aa74e638c05',4,'Almost perfect, booking ahead is a good idea.','approved',null,171,23),
+  ('cafeneaua-din-cetate','ab07049b-b435-45e3-94c4-fa532b8a52b5',5,'Personal extrem de amabil și mâncare excelentă.','approved',null,512,23)
+) as review (
+  place_id, user_id, stars, comment, status, status_reason, days, hours
+)
+on conflict (place_id, user_id) do nothing;
+
 alter table public.ratings enable trigger guard_rating;
 
 commit;
@@ -2399,4 +2548,6 @@ commit;
 select
   (select count(*) from public.public_places) as public_places,
   (select count(*) from public.ratings where status = 'approved') as public_reviews,
-  (select count(*) from public.ratings where status = 'pending') as waiting_reviews;
+  (select count(*) from public.ratings where status = 'pending') as waiting_reviews,
+  (select count(*) from public.places where status = 'pending') as waiting_places,
+  (select count(*) from public.profiles where operator_request = 'pending') as operator_requests;

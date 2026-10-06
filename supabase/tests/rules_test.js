@@ -475,18 +475,42 @@ async function main() {
     'a few new places have no reviews yet');
   check((await count("select count(*) from public.places where id in ('tea-house-sunset', 'bread-and-coffee') and rating_count = 0 and rating is not null")) === 2,
     'and a few original places keep the rating of the old app');
-  check((await count('select count(*) from public.places where owner_id = $1', [operatorId])) === 6,
+  check((await count("select count(*) from public.places where owner_id = $1 and status = 'approved'", [operatorId])) === 6,
     'the test operator owns a few places');
   await demo.query("select set_config('request.jwt.claims', $1, false)", [JSON.stringify({ sub: operatorId, role: 'authenticated' })]);
   await demo.exec('set role authenticated');
   const toDecide = Number((await demo.query("select count(*) from public.ratings_to_moderate() where status = 'pending'")).rows[0].count);
+  const operatorWaits = (await demo.query("select id from public.places where status = 'pending' order by id")).rows.map((p) => p.id).join();
   await demo.exec('reset role');
   await demo.query("select set_config('request.jwt.claims', '', false)");
   check(toDecide > 0, `and has reviews to accept (${toDecide})`);
+  check(operatorWaits === 'bistro-olga,terasa-olga', 'and sees his two places waiting for an admin, a new one and a changed one');
+  check((await count("select count(*) from public.places where status = 'pending' and rating is null and rating_count = 0 and created_at > now() - interval '5 days'")) === 5,
+    'new places wait for an admin, without reviews');
+  check((await count("select count(*) from public.places where status = 'pending' and rating_count > 0 and created_at < now() - interval '1 year'")) === 4 &&
+    (await count("select count(*) from public.place_ratings('terasa-olga')")) === 0,
+    'and changed ones, which keep their reviews but hide them until approved');
+  check((await count("select count(*) from public.places p join public.profiles u on u.id = p.owner_id where p.status = 'pending' and u.role = 'operator'")) === 9,
+    'each place waiting belongs to an operator');
+  check((await count("select count(*) from public.profiles where operator_request = 'pending' and role = 'user' and email like '%@demo.ro'")) === 5,
+    'and five users ask to become operators');
   const before = await count('select count(*) from public.ratings');
   await demo.exec(seed);
   check((await count('select count(*) from public.ratings')) === before &&
-    (await count('select count(*) from public.public_places')) === 84, 'running it again changes nothing');
+    (await count('select count(*) from public.public_places')) === 84 &&
+    (await count("select count(*) from public.places where status = 'pending'")) === 9 &&
+    (await count("select count(*) from public.profiles where operator_request = 'pending'")) === 5,
+    'running it again changes nothing');
+  // An admin decides in the app, then the file runs once more.
+  await demo.query("update public.places set status = 'approved' where id = 'terasa-olga'");
+  await demo.query("update public.profiles set operator_request = 'rejected', operator_request_reason = 'Nu ai un local.' where email = 'petru.sima@demo.ro'");
+  // As the app's approval does: the role, and the request is gone.
+  await demo.query("update public.profiles set role = 'operator', operator_request = null where email = 'lavinia.radu@demo.ro'");
+  await demo.exec(seed);
+  row = (await demo.query("select role, operator_request from public.profiles where email in ('petru.sima@demo.ro', 'lavinia.radu@demo.ro') order by email")).rows;
+  check((await count("select count(*) from public.places where id = 'terasa-olga' and status = 'approved'")) === 1 &&
+    row[0].role === 'operator' && row[0].operator_request === null && row[1].operator_request === 'rejected',
+    'and keeps what an admin decided meanwhile');
   const reviewer = (await demo.query("select id from public.profiles where email like '%@demo.ro' order by email limit 1")).rows[0].id;
   await demo.query("select set_config('request.jwt.claims', $1, false)", [JSON.stringify({ sub: reviewer, role: 'authenticated' })]);
   await demo.exec('set role authenticated');
@@ -497,10 +521,10 @@ async function main() {
   await demo.query("select set_config('request.jwt.claims', '', false)");
   check(row.status === 'pending' && row.today, 'afterwards, reviews wait and get their date as always');
   await demo.exec(fs.readFileSync(path.join(__dirname, '..', 'seed_demo_remove.sql'), 'utf8'));
-  check((await count('select count(*) from public.public_places')) === 20 &&
+  check((await count('select count(*) from public.places')) === 20 &&
     (await count("select count(*) from public.profiles where email like '%@demo.ro'")) === 0 &&
     (await count('select count(*) from public.ratings')) === 0,
-    'seed_demo_remove.sql takes it all out again');
+    'seed_demo_remove.sql takes it all out again, the places waiting too');
 
   console.log('Demo conversations (seed_conversations.sql)');
   const talks = await newDatabase();

@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.tudorrrr" "\0"
-            VALUE "FileDescription", "top_places" "\0"
+            VALUE "FileDescription", "Top Places" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "top_places" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.tudorrrr. All rights reserved." "\0"
             VALUE "OriginalFilename", "top_places.exe" "\0"
-            VALUE "ProductName", "top_places" "\0"
+            VALUE "ProductName", "Top Places" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

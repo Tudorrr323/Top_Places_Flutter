@@ -1,11 +1,11 @@
 {
-    "name": "top_places",
-    "short_name": "top_places",
+    "name": "Top Places",
+    "short_name": "Top Places",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#2A7DC1",
+    "theme_color": "#2A7DC1",
+    "description": "The best places to eat and drink in Romania, with a map, reviews and an assistant.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
