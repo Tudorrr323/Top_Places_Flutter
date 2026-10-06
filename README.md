@@ -4,6 +4,18 @@ The best places to eat and drink in Romania, on a map, with reviews and an assis
 
 This is a rewrite of [Top Places](https://github.com/Tudorrr323/Aplicatie-Turism-Hackathon), a React Native (Expo) app built at the THECON hackathon in November 2025. The rewrite keeps what the app did, fixes what it got wrong (see [Compared to the original](#compared-to-the-original)) and adds accounts with roles, reviews, moderation and a chat history.
 
+## Try it
+
+**[top-places-flutter.vercel.app](https://top-places-flutter.vercel.app/)** is the web version, for phones and computers alike. It runs on the demo data, and anyone can sign in with the test accounts:
+
+| Account | Password | What it can do |
+|---|---|---|
+| `user@test.ro` | `Test123!` | Rate places, and keep a history of the chat |
+| `operator@test.ro` | `Test123!` | Add and edit places, accept or reject their reviews |
+| `admin@test.ro` | `Test123!` | Approve places and operators, suspend accounts |
+
+The AI answers of the assistant are off there, so that the Gemini key stays private. The assistant says so, and answers with its rules. To try the AI, run the app with your own key, as [Running it](#running-it) explains. A key is free from Google AI Studio.
+
 ## Screenshots
 
 The demo data of `supabase/seed_demo.sql`. On Android, signed in as the test admin.
