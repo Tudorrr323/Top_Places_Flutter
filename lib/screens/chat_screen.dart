@@ -154,8 +154,12 @@ class _ChatScreenState extends State<ChatScreen> {
     // looks like Romanian, in Romanian.
     final otherLanguage =
         _gemini != null && !BotEngine.speaksLanguageOf(message);
-    final reply = otherLanguage ? bot.notUnderstood : bot.reply(message);
-    final gemini = reply == bot.notUnderstood ? _gemini : null;
+    final understood = otherLanguage ? bot.notUnderstood : bot.reply(message);
+    final gemini = understood == bot.notUnderstood ? _gemini : null;
+    // Without a key, the answer says that the AI would have answered.
+    final reply = understood == bot.notUnderstood && _gemini == null
+        ? ChatMessage.bot('${understood.text} ${l10n.chatAiOff}')
+        : understood;
     final question = ChatMessage.user(message);
     setState(() {
       _messages.add(question);

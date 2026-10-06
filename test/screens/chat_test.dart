@@ -150,4 +150,23 @@ void main() {
     expect(asked, isEmpty);
     expect(find.textContaining('În Cluj-Napoca poți bea ceva la'), findsOne);
   });
+
+  testWidgets('without a key, the assistant says that the AI is off', (
+    tester,
+  ) async {
+    await openChat(tester);
+    expect(
+      find.textContaining('Răspunsurile AI (Gemini) sunt oprite'),
+      findsOneWidget,
+    );
+
+    await send(tester, 'Am chef de ceva dulce, ce-mi recomanzi?');
+
+    expect(
+      find.textContaining(
+        'La asta ar fi răspuns AI-ul (Gemini), care e oprit în această versiune.',
+      ),
+      findsOneWidget,
+    );
+  });
 }

@@ -1775,8 +1775,14 @@ abstract class AppLocalizations {
   /// No description provided for @chatWelcome.
   ///
   /// In ro, this message translates to:
-  /// **'Salut! Sunt asistentul Top Places. Răspund pe loc la întrebări despre localuri, orașe și rezervări.'**
+  /// **'Salut! Sunt asistentul Top Places. Răspund pe loc la întrebări despre localuri, orașe și rezervări. Răspunsurile AI (Gemini) sunt oprite în această versiune: ca să le încerci, rulează aplicația cu cheia ta Gemini, după pașii din README-ul proiectului.'**
   String get chatWelcome;
+
+  /// Added to "Nu am înțeles" when the app runs without a Gemini key.
+  ///
+  /// In ro, this message translates to:
+  /// **'La asta ar fi răspuns AI-ul (Gemini), care e oprit în această versiune.'**
+  String get chatAiOff;
 
   /// No description provided for @chatWelcomeWithAi.
   ///

@@ -1014,7 +1014,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get chatWelcome =>
-      'Hi! I\'m the Top Places assistant. I answer questions about places, cities and bookings right away.';
+      'Hi! I\'m the Top Places assistant. I answer questions about places, cities and bookings right away. The AI answers (Gemini) are off in this version: to try them, run the app with your own Gemini key, as the project\'s README explains.';
+
+  @override
+  String get chatAiOff =>
+      'The AI (Gemini) would have answered this, but it is off in this version.';
 
   @override
   String get chatWelcomeWithAi =>

@@ -1025,7 +1025,11 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get chatWelcome =>
-      'Salut! Sunt asistentul Top Places. Răspund pe loc la întrebări despre localuri, orașe și rezervări.';
+      'Salut! Sunt asistentul Top Places. Răspund pe loc la întrebări despre localuri, orașe și rezervări. Răspunsurile AI (Gemini) sunt oprite în această versiune: ca să le încerci, rulează aplicația cu cheia ta Gemini, după pașii din README-ul proiectului.';
+
+  @override
+  String get chatAiOff =>
+      'La asta ar fi răspuns AI-ul (Gemini), care e oprit în această versiune.';
 
   @override
   String get chatWelcomeWithAi =>

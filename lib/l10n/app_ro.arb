@@ -658,7 +658,8 @@
   "chatSuggestion2": "Cea mai bună cafea",
   "chatSuggestion3": "Caută Burger Shack",
   "chatSuggestion4": "Cum fac o rezervare?",
-  "chatWelcome": "Salut! Sunt asistentul Top Places. Răspund pe loc la întrebări despre localuri, orașe și rezervări.",
+  "chatWelcome": "Salut! Sunt asistentul Top Places. Răspund pe loc la întrebări despre localuri, orașe și rezervări. Răspunsurile AI (Gemini) sunt oprite în această versiune: ca să le încerci, rulează aplicația cu cheia ta Gemini, după pașii din README-ul proiectului.",
+  "chatAiOff": "La asta ar fi răspuns AI-ul (Gemini), care e oprit în această versiune.",
   "chatWelcomeWithAi": "Salut! Sunt asistentul Top Places. Răspund pe loc la întrebări despre localuri, orașe și rezervări, iar ce nu știu întreb AI-ul (Gemini).",
   "chatAiQuota": "Nu am înțeles întrebarea, iar AI-ul și-a atins limita gratuită pentru moment. Întreabă-mă despre localuri, orașe sau rezervări.",
   "chatAiDown": "Nu am înțeles întrebarea, iar AI-ul nu răspunde acum (poate lipsește internetul). Întreabă-mă despre localuri, orașe sau rezervări.",
@@ -766,5 +767,8 @@
         "type": "String"
       }
     }
+  },
+  "@chatAiOff": {
+    "description": "Added to \"Nu am înțeles\" when the app runs without a Gemini key."
   }
 }
