@@ -4,6 +4,43 @@ The best places to eat and drink in Romania, on a map, with reviews and an assis
 
 This is a rewrite of [Top Places](https://github.com/Tudorrr323/Aplicatie-Turism-Hackathon), a React Native (Expo) app built at the THECON hackathon in November 2025. The rewrite keeps what the app did, fixes what it got wrong (see [Compared to the original](#compared-to-the-original)) and adds accounts with roles, reviews, moderation and a chat history.
 
+## Screenshots
+
+The demo data of `supabase/seed_demo.sql`. On Android, signed in as the test admin.
+
+**Android**, in English with the light theme
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/android-map.jpg" width="240" alt="The map of Romania, with nearby places grouped into numbered bubbles"><br><sub>Nearby places, grouped</sub></td>
+    <td align="center"><img src="docs/screenshots/android-place.jpg" width="240" alt="A coffee shop in Cluj-Napoca, open in a small card over the map"><br><sub>A place, from a search suggestion</sub></td>
+    <td align="center"><img src="docs/screenshots/android-reviews.jpg" width="240" alt="The reviews of the place, with the form for your own"><br><sub>Its reviews, and your own</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/android-history.jpg" width="240" alt="The list of past conversations with the assistant"><br><sub>The history of the chat</sub></td>
+    <td align="center"><img src="docs/screenshots/android-chat.jpg" width="240" alt="A conversation in French, answered by Gemini in French"><br><sub>Gemini answers in French</sub></td>
+    <td align="center"><img src="docs/screenshots/android-admin.jpg" width="240" alt="The admin's list of places waiting for approval"><br><sub>Places waiting for an admin</sub></td>
+  </tr>
+</table>
+
+**Windows**, in Romanian with the dark theme
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/windows-explore.jpg" width="440" alt="The list of places next to the map"><br><sub>The list next to the map</sub></td>
+    <td align="center"><img src="docs/screenshots/windows-place.jpg" width="440" alt="A steakhouse in Ploiești, open over the map"><br><sub>A place over the map</sub></td>
+  </tr>
+</table>
+
+**The web**, in English with the light theme
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/web-place.jpg" width="440" alt="A bistro in Cluj-Napoca, open over the map"><br><sub>A place over the map</sub></td>
+    <td align="center"><img src="docs/screenshots/web-chat.jpg" width="440" alt="The rules answer in English, then Gemini answers a question in German"><br><sub>The rules answer in English, Gemini in German</sub></td>
+  </tr>
+</table>
+
 ## What it does
 
 **Explore**
