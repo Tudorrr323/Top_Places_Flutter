@@ -97,7 +97,9 @@ All the rules live in the database, not only in the app. Row Level Security and 
 
 The checks in the app are there only for comfort.
 
-To set up a new Supabase project, run these files from `supabase/` in the SQL Editor, in this order:
+To set up a new Supabase project with everything, demo data included, run `supabase/setup.sql` once in the SQL Editor.
+
+It is made from the files below by `supabase/tools/build_setup.js`. To set up the tables and rules only, run these from `supabase/` instead, in this order:
 
 1. `schema.sql`
 2. `002_public_places.sql`
